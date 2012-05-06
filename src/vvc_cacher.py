@@ -6,10 +6,12 @@ import re
 from time import gmtime, strftime
 import boto
 
-
 def getVVCChart():
    VVC_CHART_JSON = 'http://viralvideochart.unrulymedia.com/all?format=app_json' 
    vvc_file = urllib2.urlopen(VVC_CHART_JSON)
+
+   makeNewS3Key(vvc_file, 'current_vvc.json')
+
    vvc = json.load(vvc_file)
    
    return vvc
@@ -62,10 +64,10 @@ def makeNewS3Key(file, filename):
    #key.set_acl('public-read')
 
 vvc = getVVCChart()
-url = vvc['entries'][0]['hostingSiteUrl']
-#ref = getVideoRefFromYTUrl(url) 
-ref = 'QH2-TGUlwu4'
-ytVid = getYTVideo(ref)
-filename = ref + '4.mp4'
-makeNewS3Key(ytVid, filename)
+for (entry in vvc['entries']):
+  url = entry['hostingSiteUrl']
+  ref = getVideoRefFromYTUrl(url) 
+  ytVid = getYTVideo(ref)
+  filename = ref + '.mp4'
+  makeNewS3Key(ytVid, filename)
 
