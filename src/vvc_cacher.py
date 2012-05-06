@@ -3,16 +3,20 @@ import urllib2
 import urllib
 import json
 import re
-from time import gmtime, strftime
 import boto
+from StringIO import StringIO
 
 def getVVCChart():
    VVC_CHART_JSON = 'http://viralvideochart.unrulymedia.com/all?format=app_json' 
    vvc_file = urllib2.urlopen(VVC_CHART_JSON)
 
-   #makeNewS3Key(vvc_file, 'current_vvc.json')
+   vvc = vvc_file.read()
 
-   vvc = json.load(vvc_file)
+   jsonMetadata = ({'Content-Type' : 'application/json'})
+   makeNewS3Key(vvc, 'current_vvc.json', jsonMetadata)
+
+   print vvc
+   vvc = json.load(StringIO(vvc))
    
    return vvc
 
@@ -36,38 +40,43 @@ def getYTVideo(videoRef):
    vidUrl =  re.search(vidRE, vidDets).groups(0)[0]
    vidUrl = urllib2.unquote(vidUrl)
 
-   print strftime("%H:%M:%S", gmtime()) +  " getting " + vidUrl 
+   print " getting " + vidUrl 
    finalVid = urllib2.urlopen(vidUrl)
-   #finalVid = urllib.urlretrieve(vidUrl)[0]
    print finalVid
 
-   print strftime("%H:%M:%S", gmtime()) +  " done got " + vidUrl 
+   print " done got " + vidUrl 
    mimeType = finalVid.info().getheader('Content-Type')
    #  use webm if can't get mime type from response?
 
    return finalVid
 
-def makeNewS3Key(file, filename):
+def makeNewS3Key(file, filename, metadata):
    # not exactly optimal. ahem
    # uses boto cfg set in /etc/boto or ~/.boto
+   # or the heroku config AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY 
 
    s3 = boto.connect_s3()
    bucket = s3.get_bucket('streaming.vikkiread.co.uk')
+   if bucket.get_key(filename) == None:
+      return
    key = bucket.new_key(filename)
-   real_file = open('/tmp/feh', 'w')
-   real_file.write(file.read())
-   real_file = open('/tmp/feh', 'r')
-   key.set_metadata('kitten', 'test')
-   key.update_metadata({'Content-Type' : 'video/webm', 'Content-Disposition': 'inline'})
-   key.set_contents_from_file(real_file)
+   key.update_metadata(metadata)
+   key.set_contents_from_string(file)
    key.make_public()
-   #key.set_acl('public-read')
 
+   # put stuff back so we can keep using it  
+   # todo think about this properly!!! is weird
+   print key
+
+print "getting vvc"
 vvc = getVVCChart()
+print "got vvc"
 for entry in vvc['entries']:
   url = entry['hostingSiteUrl']
   ref = getVideoRefFromYTUrl(url) 
   ytVid = getYTVideo(ref)
   filename = ref + '.mp4'
-  makeNewS3Key(ytVid, filename)
+  vidMetadata = ({'Content-Type' : 'video/webm', 'Content-Disposition': 'inline'})
+  makeNewS3Key(ytVid, filename, vidMetadata)
+print "done :D"
 
