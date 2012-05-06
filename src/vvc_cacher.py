@@ -10,7 +10,7 @@ def getVVCChart():
    VVC_CHART_JSON = 'http://viralvideochart.unrulymedia.com/all?format=app_json' 
    vvc_file = urllib2.urlopen(VVC_CHART_JSON)
 
-   makeNewS3Key(vvc_file, 'current_vvc.json')
+   #makeNewS3Key(vvc_file, 'current_vvc.json')
 
    vvc = json.load(vvc_file)
    
@@ -64,7 +64,7 @@ def makeNewS3Key(file, filename):
    #key.set_acl('public-read')
 
 vvc = getVVCChart()
-for (entry in vvc['entries']):
+for entry in vvc['entries']:
   url = entry['hostingSiteUrl']
   ref = getVideoRefFromYTUrl(url) 
   ytVid = getYTVideo(ref)
