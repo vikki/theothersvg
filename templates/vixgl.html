@@ -636,7 +636,7 @@ glCtx.prototype.updateTextureWith = function(image, texture)  {
   function Planet(rTri, rotDist, distFromCentre, imageUrl, scale, color, title, video, videoRef ){
     this.rotDist = rotDist;
     this.distFromCentre = distFromCentre;
-    this.imageUrl = imageUrl;
+    this.imageUrl = 'http://streaming.vikkiread.co.uk.s3.amazonaws.com' + videoRef + '.jpg';
     this.rotationAngleDuringWindow = rTri;
     this.windowToRotate = 1000;
     this.rTri = rTri;
