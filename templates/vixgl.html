@@ -786,7 +786,7 @@ function doStuff() {
    if (oReq != null) {
        //oReq.open("GET", "/static/fakevvc.js", true);    
        //oReq.open("GET", "/html?html=http://viralvideochart.unrulymedia.com/all?format=app_json", true);    
-       oReq.open("GET", "http://streaming.vikkiread.co.uk.s3.amazonaws.com/current_vvc.json", true);    
+       oReq.open("GET", "/html?html=http://streaming.vikkiread.co.uk.s3.amazonaws.com/current_vvc.json", true);    
        oReq.onreadystatechange = handler;    
        oReq.send();
    }
