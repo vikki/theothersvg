@@ -464,7 +464,7 @@
          var texture = ctx.createTextureFromImage(this);
          planet.texture = texture;
       }
-      foo.src = '/kitty?img=' +  vid;
+      foo.src = '/kitty?img=' + vid;
     }
 
 // its an enormous ballache to get the index in here, so not bothering for now..
@@ -636,7 +636,7 @@ glCtx.prototype.updateTextureWith = function(image, texture)  {
   function Planet(rTri, rotDist, distFromCentre, imageUrl, scale, color, title, video, videoRef ){
     this.rotDist = rotDist;
     this.distFromCentre = distFromCentre;
-    this.imageUrl = 'http://streaming.vikkiread.co.uk.s3.amazonaws.com' + videoRef + '.jpg';
+    this.imageUrl = 'http://streaming.vikkiread.co.uk.s3.amazonaws.com/' + videoRef + '.jpg';
     this.rotationAngleDuringWindow = rTri;
     this.windowToRotate = 1000;
     this.rTri = rTri;
