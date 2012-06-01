@@ -9,8 +9,7 @@ def getVVCChart():
    VVC_CHART_JSON = 'http://viralvideochart.unrulymedia.com/all?format=app_json' 
    vvc_file = urllib2.urlopen(VVC_CHART_JSON)
 
-   makeNewS3Key(vvc_file, 'current_vvc.json')
-
+   makeNewS3Key(vvc_file, 'current_vvc.json', True)
    
    vvc_file = urllib2.urlopen(VVC_CHART_JSON)
    print vvc_file
@@ -47,14 +46,14 @@ def getYTVideo(videoRef):
 
    return finalVid
 
-def makeNewS3Key(file, filename):
+def makeNewS3Key(file, filename, clobberExisting=False):
    # not exactly optimal. ahem
    # uses boto cfg set in /etc/boto or ~/.boto
    # or the heroku config AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY 
 
    s3 = boto.connect_s3()
    bucket = s3.get_bucket('streaming.vikkiread.co.uk')
-   if bucket.get_key(filename) != None:
+   if clobberExisting and bucket.get_key(filename) != None:
       print  "already got " + filename
       return
    key = bucket.new_key(filename)
