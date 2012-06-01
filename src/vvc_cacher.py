@@ -31,10 +31,13 @@ def getYTVideo(videoRef):
    vidFile = urllib2.urlopen(url)
    vidDets = vidFile.read()
    vidDets = urllib2.unquote(vidDets)
+   print "vidDets is " + vidDets
 
    vidRE = r'url_encoded_fmt_stream_map=url=([^&]*)&'
 
-   vidUrl =  re.search(vidRE, vidDets).groups(0)[0]
+   vidMatch =  re.search(vidRE, vidDets)
+   print "vidMatch is " + vidMatch
+   vidUrl =  vidMatch.groups(0)[0]
    vidUrl = urllib2.unquote(vidUrl)
 
    print " getting " + vidUrl 
