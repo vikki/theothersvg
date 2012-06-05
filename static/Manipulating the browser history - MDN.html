@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<!-- saved from url=(0069)https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history -->
+<html lang="en" dir="ltr" id="developer-mozilla-org"><script>(function main() {
+    // Create enabled event
+    function fireEnabledEvent() {
+        // If gli exists, then we are already present and shouldn't do anything
+        if (!window.gli) {
+            setTimeout(function () {
+                var enabledEvent = document.createEvent("Event");
+                enabledEvent.initEvent("WebGLEnabledEvent", true, true);
+                document.dispatchEvent(enabledEvent);
+            }, 0);
+        } else {
+            //console.log("WebGL Inspector already embedded on the page - disabling extension");
+        }
+    };
+
+    // Grab the path root from the extension
+    document.addEventListener("WebGLInspectorReadyEvent", function (e) {
+        var pathElement = document.getElementById("__webglpathroot");
+        if (window["gliloader"]) {
+            gliloader.pathRoot = pathElement.innerText;
+        } else {
+            // TODO: more?
+            window.gliCssUrl = pathElement.innerText + "gli.all.css";
+        }
+    }, false);
+
+    // Rewrite getContext to snoop for webgl
+    var originalGetContext = HTMLCanvasElement.prototype.getContext;
+    if (!HTMLCanvasElement.prototype.getContextRaw) {
+        HTMLCanvasElement.prototype.getContextRaw = originalGetContext;
+    }
+    HTMLCanvasElement.prototype.getContext = function () {
+        var ignoreCanvas = this.internalInspectorSurface;
+        if (ignoreCanvas) {
+            return originalGetContext.apply(this, arguments);
+        }
+
+        var result = originalGetContext.apply(this, arguments);
+        if (result == null) {
+            return null;
+        }
+
+        var contextNames = ["moz-webgl", "webkit-3d", "experimental-webgl", "webgl", "3d"];
+        var requestingWebGL = contextNames.indexOf(arguments[0]) != -1;
+        if (requestingWebGL) {
+            // Page is requesting a WebGL context!
+            fireEnabledEvent(this);
+            
+            // If we are injected, inspect this context
+            if (window.gli) {
+                if (gli.host.inspectContext) {
+                    // TODO: pull options from extension
+                    result = gli.host.inspectContext(this, result);
+                    var hostUI = new gli.host.HostUI(result);
+                    result.hostUI = hostUI; // just so we can access it later for debugging
+                }
+            }
+        }
+
+        return result;
+    };
+})();</script><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>Manipulating the browser history - MDN</title>
+
+<meta charset="utf-8">
+
+<meta name="viewport" content="initial-scale=1.0, width=device-width">
+<meta name="MSSmartTagsPreventParsing" content="true">
+<meta name="Copyright" content="Copyright (c) 2005-2012 Mozilla.">
+<meta name="Rating" content="General">
+
+<link rel="home" href="https://developer.mozilla.org/">
+<link rel="copyright" href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#copyright">
+<meta name="robots" content="index,follow">
+<link rel="shortcut icon" href="https://developer.mozilla.org/favicon.ico">
+<link rel="alternate" type="application/rss+xml" title="What&#39;s new feed" href="https://developer.mozilla.org/index.php?title=Special:Recentchanges&feed=rss">
+<link rel="alternate" type="application/rss+xml" title="Page and subpages changes feed" href="https://developer.mozilla.org/index.php?title=Special:Article&type=feed&feedtype=subpagechanges&pageid=52456">
+<link rel="alternate" type="application/rss+xml" title="Page changes feed" href="https://developer.mozilla.org/index.php?title=Special:Article&type=feed&pageid=52456">
+<meta name="generator" content="MindTouch">
+<link rel="search" type="application/opensearchdescription+xml" title="MDN Search" href="https://developer.mozilla.org/deki/gui/opensearch.php?type=description">
+<link rel="stylesheet" type="text/css" media="screen" href="./Manipulating the browser history - MDN_files/css.php"> <!--[if IE 7]><style type="text/css">@import "/skins/common/_ie7.css";</style><![endif]--><!--[if IE 6]><style type="text/css">@import "/skins/common/_ie.css";</style><![endif]--><link rel="stylesheet" type="text/css" media="print" href="./Manipulating the browser history - MDN_files/print.css">
+<link rel="stylesheet" type="text/css" media="screen,projection" href="./Manipulating the browser history - MDN_files/css(1).php">
+<!--[if lte IE 7]><link rel="stylesheet" type="text/css" media="all" href="/skins/mdn/Transitional/ie7.css"><![endif]-->
+<!--[if lte IE 6]><link rel="stylesheet" type="text/css" media="all" href="/skins/mdn/Transitional/ie6.css"><![endif]-->
+<link rel="stylesheet" type="text/css" media="print" href="./Manipulating the browser history - MDN_files/print(1).css">
+<link rel="stylesheet" href="https://www.mozilla.org/tabzilla/media/css/tabzilla.css">
+
+<script type="text/javascript">CKEDITOR_BASEPATH = "/deki/plugins/page_editor_ckeditor/ckeditor/";</script>
+<script type="text/javascript" src="./Manipulating the browser history - MDN_files/js.php"></script><script type="text/javascript">var _starttime = new Date().getTime();</script>
+
+<!--[if IE]>
+<meta http-equiv="imagetoolbar" content="no">
+<meta http-equiv="X-UA-Compatible" content="IE=Edge">
+<script src="/skins/mdn/Transitional/js/html5.js"></script>
+<![endif]-->
+
+	<script type="text/javascript">
+
+		var aLt = aLt || [];aLt["attach-no-description"] = 'No description'; aLt["cancel"] = 'Cancel'; aLt["close"] = 'Close'; aLt["comment-delete"] = 'Are you sure you want to delete this comment?'; aLt["contentrating-title-popup"] = 'Thanks for your feedback'; aLt["error"] = 'Error'; aLt["error-permission-denied"] = 'Permission denied'; aLt["error-permission-details"] = 'Your account does not have sufficient permissions to perform that action.'; aLt["gallery-close"] = 'close'; aLt["gallery-next"] = 'next'; aLt["gallery-prev"] = 'prev'; aLt["internal-error"] = 'Sorry, but there was an internal problem - please try again soon.'; aLt["js-label_cancel"] = 'Cancel'; aLt["js-label_save"] = 'Save'; aLt["js-tooltip_cancel"] = 'Exit Without Saving Changes'; aLt["js-tooltip_save"] = 'Save and Exit (Alt+S)'; aLt["ldap-provide-credentials"] = 'Please provide external service login credentials.'; aLt["loading"] = 'Loading...'; aLt["menu-confirm-delete"] = 'Are you sure you want to delete this file?'; aLt["menu-delete-file"] = 'Delete'; aLt["menu-edit-description"] = 'Edit description'; aLt["menu-move-file"] = 'Move'; aLt["menu-previous-versions"] = 'Previous versions'; aLt["menu-view-original"] = 'View original'; aLt["ready"] = 'Ready'; aLt["remove-tag"] = 'Remove tag'; aLt["restore-tag"] = 'Restore tag'; aLt["adding-tags"] = 'Adding Tags...'; aLt["save"] = 'Save'; aLt["submit"] = 'Submit'; aLt["wikibits-attach-another"] = 'Attach another file'; aLt["wikibits-attach-file"] = 'Attach File'; aLt["wikibits-cant-attach-editing"] = 'Sorry, you can\'t attach files while editing a page. Please close the editor first.'; aLt["wikibits-edit-section"] = 'Edit section'; aLt["wikibits-remove-file"] = 'Remove file'; aLt["advanced-search"] = 'Advanced Search'; aLt["standard-search"] = 'Standard Search';  var wfMsg = wfMsg || function (key) { return aLt[key] ? aLt[key] : 'MISSING: ' + key; };
+	//hook in menu clicking events to the document's body
+	YAHOO.util.Event.addListener(document, "click", function () { DWMenu.BodyClick(); });
+	YAHOO.util.Event.onDOMReady(function () { new clientWindow });
+
+		
+
+			YAHOO.util.Event.onDOMReady(function() {
+			tb_init("a.lightbox, area.lightbox, input.lightbox, a[rel='awesomebox']");//pass where to apply thickbox
+		});
+	
+			YAHOO.util.Event.onDOMReady(function() {
+			MTComments.HookBehavior();
+		});
+		</script>
+<script type="text/javascript" src="./Manipulating the browser history - MDN_files/rgbcolor.js"></script>
+<script type="text/javascript" src="./Manipulating the browser history - MDN_files/nav.js"></script>
+
+<script type="text/javascript">
+
+Deki.BaseHref = 'https://developer.mozilla.org';
+Deki.PageId = 52456;
+Deki.PageTitle = 'en/DOM/Manipulating the browser history';
+Deki.PageLanguageCode = 'en';
+Deki.FollowRedirects = 1;
+Deki.PathTpl = '/skins/mdn';
+Deki.PathSkin = '/skins/mdn/Transitional';
+Deki.PathCommon = '/skins/common';
+Deki.UserName = 'Anonymous';
+Deki.Today = '5 Jun 2012';
+Deki.UserIsAnonymous = true;
+Deki.EditorConfigToken = '9dc6c9c4';
+Deki.EditorStylesToken = 'ba683c44';
+Deki.PageEditable = false;
+</script>
+<script type="text/javascript">aLt["commercial-required"] = 'Gather feedback on your content with <strong>community scoring</strong> - these ratings weight results in adaptive search. Through curation analytics, ratings are used to highlight pages in need of attention. <a href="http://www.mindtouch.com/redir/mindtouch-tcs/">Learn more on enabling these capabilities with MindTouch 2010.</a>';aLt["login-required"] = 'You must be <a href="/index.php?title=Special:Userlogin&returntotitle=en%2FDOM%2FManipulating+the+browser+history">logged in</a> to perform that action';</script><link href="./Manipulating the browser history - MDN_files/custom_css.php" rel="stylesheet" type="text/css"> 
+ 
+</head>
+
+<body id="docs" class="section-docs en ltr yui-skin-sam PageDW-enDOMManipulatingthebrowserhistory hasJS" role="document"><div id="tabzilla-panel" class="tabzilla-closed"><div id="tabzilla-contents">  <div id="tabzilla-promo">    <div class="snippet" id="tabzilla-promo-beta">    <a href="http://www.mozilla.org/firefox/beta/?WT.mc_id=tzfxbeta&WT.mc_ev=click">      <b>Download Firefox Beta</b>, provide feedback and help make the       next version of Firefox even more awesome.</a>    </div>  </div>  <div id="tabzilla-nav">    <ul>      <li><h2>Mozilla</h2>        <ul>          <li><a href="http://www.mozilla.org/mission/">Mission</a></li>          <li><a href="http://www.mozilla.org/about/">About</a></li>          <li><a href="http://www.mozilla.org/projects/">Projects</a></li>          <li><a href="http://support.mozilla.org/">Support</a></li>          <li><a href="https://developer.mozilla.org/">Developer Network</a></li>        </ul>      </li>      <li><h2>Products</h2>        <ul>          <li><a href="http://www.mozilla.org/firefox">Firefox</a></li>          <li><a href="http://www.mozilla.org/thunderbird">Thunderbird</a></li>        </ul>      </li>      <li><h2>Innovations</h2>        <ul>          <li><a href="https://webfwd.org/">WebFWD</a></li>          <li><a href="http://mozillalabs.com/">Labs</a></li>        </ul>      </li>      <li><h2>Get Involved</h2>        <ul>          <li><a href="http://www.mozilla.org/contribute/">Volunteer</a></li>          <li><a href="http://www.mozilla.org/en-US/about/careers.html">Careers</a></li>          <li><a href="http://www.mozilla.org/en-US/about/mozilla-spaces/">Find us</a></li>          <li><a href="https://donate.mozilla.org/">Join us</a></li>        </ul>      </li>      <li id="tabzilla-search">        <a href="http://www.mozilla.org/community/directory.html">Website Directory</a>        <form title="Search Mozilla sites" action="http://www.google.com/cse">          <input type="hidden" value="002443141534113389537:ysdmevkkknw" name="cx">          <input type="hidden" value="FORID:0" name="cof">          <input type="search" placeholder="Search" id="q" name="q">        </form>      </li>    </ul>  </div></div></div>
+<!--[if lte IE 8]>
+<noscript><div class="global-notice">
+<p><strong>Warning:</strong> The Mozilla Developer Network website employs emerging web standards that may not be fully supported in some versions of MicroSoft Internet Explorer. You can improve your experience of this website by enabling JavaScript.</p>
+</div></noscript>
+<![endif]-->
+<noscript>&lt;div class="noscript"&gt;This application requires Javascript to be enabled.&lt;/div&gt;</noscript>
+<header id="masthead" role="banner">
+  <div class="wrap">
+  
+    <div id="branding">
+      <h1 id="logo"><a href="https://developer.mozilla.org/"><img src="./Manipulating the browser history - MDN_files/mdn-logo-sm.png" alt="" title="" width="62" height="71"> Mozilla Developer Network</a></h1>
+    </div>
+
+    <nav id="nav" role="menubar">
+      <ul id="nav-main">
+        <li id="nav-main-topics" class="menu"><a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#nav-sub-topics" aria-haspopup="true" class="toggle" title="Explore other parts of MDN">Topics</a>
+          <ul id="nav-sub-topics" class="sub-menu" aria-hidden="true" style="display: none; ">
+            <li id="nav-sub-web"><a href="https://developer.mozilla.org/web">Web</a></li>
+            <li id="nav-sub-apps"><a href="https://developer.mozilla.org/apps">Apps</a></li>
+            <li id="nav-sub-mobile"><a href="https://developer.mozilla.org/mobile">Mobile</a></li>
+            <li id="nav-sub-addons"><a href="https://developer.mozilla.org/addons">Add-ons</a></li>
+            <li id="nav-sub-mozilla"><a href="https://developer.mozilla.org/mozilla">Mozilla</a></li>
+          </ul>
+        </li>
+        <li id="nav-main-docs" class="menu"><a href="https://developer.mozilla.org/docs" class="docs toggle" aria-haspopup="true" aria-labelledby="nav-main-docs">Docs</a>
+          <div id="nav-sub-docs" class="sub-menu" aria-hidden="true" style="display: none; ">
+            <ul>
+              <li>
+                <ul>
+                  <li><a href="https://developer.mozilla.org/en/HTML">HTML</a></li>
+                  <li><a href="https://developer.mozilla.org/en/DOM">DOM</a></li>
+                  <li><a href="https://developer.mozilla.org/en/Using_audio_and_video_in_Firefox">Video</a></li>
+                  <li><a href="https://developer.mozilla.org/en/Using_audio_and_video_in_Firefox">Audio</a></li>
+                  <li><a href="https://developer.mozilla.org/en/SVG">SVG</a></li>
+                  <li><a href="https://developer.mozilla.org/en/WebGL">WebGL</a></li>
+                </ul>
+              </li>
+              <li>
+                <ul>
+                  <li><a href="https://developer.mozilla.org/en/HTML/HTML5">HTML5</a></li>
+                  <li><a href="https://developer.mozilla.org/en/WebSockets">WebSockets</a></li>
+                  <li><a href="https://developer.mozilla.org/en/Offline_resources_in_Firefox">Offline Cache</a></li>
+                  <li><a href="https://developer.mozilla.org/en/DOM/Storage">Local Storage</a></li>
+                  <li><a href="https://developer.mozilla.org/en/IndexedDB">IndexedDB</a></li>
+                  <li><a href="https://developer.mozilla.org/en/Using_files_from_web_applications">File API</a></li>
+                </ul>
+              </li>
+              <li>
+                <ul>
+                  <li><a href="https://developer.mozilla.org/en/CSS">CSS</a></li>
+                  <li><a href="https://developer.mozilla.org/en/Using_gradients">Gradients</a></li>
+                  <li><a href="https://developer.mozilla.org/en/CSS/Using_CSS_transforms">Transforms</a></li>
+                  <li><a href="https://developer.mozilla.org/en/CSS/CSS_transitions">Transitions</a></li>
+                  <li><a href="https://developer.mozilla.org/en/CSS/CSS_animations">Animations</a></li>
+                  <li><a href="https://developer.mozilla.org/en/CSS/Media_queries">Media Queries</a></li>
+                </ul>
+              </li>
+              <li>
+                <ul>
+                  <li><a href="https://developer.mozilla.org/en/JavaScript">JavaScript</a></li>
+                  <li><a href="https://developer.mozilla.org/en/Ajax">Ajax</a></li>
+                  <li><a href="https://developer.mozilla.org/en/HTML/Canvas">Canvas</a></li>
+                  <li><a href="https://developer.mozilla.org/en/Using_geolocation">Geolocation</a></li>
+                  <li><a href="https://developer.mozilla.org/en/DragDrop/Drag_and_Drop">Drag &amp; Drop</a></li>
+                  <li><a href="https://developer.mozilla.org/en/Using_web_workers">Web Workers</a></li>
+                </ul>
+              </li>
+            </ul>
+            <p><a href="https://developer.mozilla.org/docs">More docs…</a></p>
+          </div>
+        </li>
+        <li id="nav-main-demos"><a href="https://developer.mozilla.org/demos" class="demos">Demos</a></li>
+        <li id="nav-main-learning"><a href="https://developer.mozilla.org/learn" class="learning">Learning</a></li>
+        <li id="nav-main-community" class="menu"><a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#nav-sub-community" class="community toggle" aria-haspopup="true" aria-labelledby="nav-main-community">Community</a>
+          <ul id="nav-sub-community" class="sub-menu" aria-hidden="true" style="display: none; ">
+            <li><a href="https://developer.mozilla.org/events">Events</a></li>
+            <li><a href="https://developer.mozilla.org/discussions">Discussions</a></li>
+            <li><a href="https://developer.mozilla.org/promote">Promote</a></li>
+          </ul>
+        </li>
+      </ul>
+    </nav>
+    
+          <ul class="user-state signed-out superfish" data-browserid-header-signin-html="/en-US/users/browserid_header_signin_html" style="display: block; ">    <li class="user-signin menu">
+      <form class="browserid" action="https://developer.mozilla.org/en-US/users/browserid_verify" method="POST"><div style="display:none;"><input type="hidden" id="csrfmiddlewaretoken" name="csrfmiddlewaretoken" value="83f3a8fc2028d21844dbda9195523cc0"></div>
+        <input id="next" name="next" type="hidden" value="/en/DOM/Manipulating_the_browser_history">
+        <input required="required" type="hidden" name="assertion" id="id_assertion">
+                        <a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#" target="_blank" class="browserid-signin toggle" aria-haspopup="true" title="Sign in with BrowserID">Sign in</a> 
+                <div class="browserid-info sub-menu" aria-hidden="true">
+                <h3>What's this?</h3> <p>MDN has switched to <a href="https://browserid.org/" target="_blank" rel="external">BrowserID</a>, a safe and simple way to sign in with just your e-mail address. <a href="http://identity.mozilla.com/post/12950196039/deploying-browserid-at-mozilla" rel="external">Learn more about why Mozilla is using BrowserID</a>.</p> <p><strong>Returning members:</strong> sign in with BrowserID and you'll be connected to your MDN profile (all your information is still here).</p> <p><strong>New members:</strong> sign in with BrowserID first, then you'll be able to set up your new MDN profile.</p>          <p><a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#" target="_blank" class="browserid-signin" title="Sign in with BrowserID">Sign in</a></p>
+        </div>
+              </form>
+    </li></ul>
+        
+    <form id="site-search" method="get" action="https://developer.mozilla.org/search">
+      <p>
+        <input type="text" role="search" placeholder="Search MDN" id="q" name="q">
+        <noscript>&lt;button type="submit"&gt;Search&lt;/button&gt;</noscript>
+      </p>
+      
+      <div id="site-search-gg"><div class="gsc-branding"><table cellspacing="0" cellpadding="0" class="gsc-branding"><tbody><tr><td class="gsc-branding-text"><div class="gsc-branding-text">powered by</div></td><td class="gsc-branding-img-noclear"><img src="./Manipulating the browser history - MDN_files/small-logo.png" class="gsc-branding-img-noclear"></td></tr></tbody></table></div></div>
+    </form>
+
+    <a id="tabzilla" href="http://www.mozilla.org/" class="tabzilla-closed">Mozilla</a>
+
+  </div>
+</header>
+
+
+<section id="nav-toolbar">
+<div class="wrap">
+
+<nav id="tool-menus">
+  <ul id="tools" class="superfish">
+    <li class="menu">
+      <a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#site-tools" class="toggle">Site tools</a>
+      <ul id="site-tools" class="sub-menu" role="navigation" style="visibility: hidden; display: none; " aria-hidden="true">
+         
+        <li class="site-recent">	<a href="https://developer.mozilla.org/Special:Recentchanges" title="Recent changes">Recent changes</a>
+</li>
+        <li class="site-rss">	<a href="https://developer.mozilla.org/Special:ListRss" title="RSS feeds">RSS feeds</a>
+</li>
+      	<li class="siteListusers"><a href="https://developer.mozilla.org/User:" title="Users">Users</a></li>
+              <li class="site-templates">	<a href="https://developer.mozilla.org/Template:" title="Templates">Templates</a>
+</li>
+              <li class="site-map">	<a href="https://developer.mozilla.org/Special:Sitemap" title="Sitemap">Sitemap</a>
+</li>
+        <li class="site-popular">	<a href="https://developer.mozilla.org/Special:Popularpages" title="Popular pages">Popular pages</a>
+</li>
+      	<li class="siteAbout"><a href="https://developer.mozilla.org/Special:About" title="About MDN">About MDN</a></li>
+      </ul>
+    </li>
+    <li class="menu">
+      <a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#page-tools" class="toggle">This page</a>
+      <ul id="page-tools" class="sub-menu" role="navigation" style="visibility: hidden; display: none; " aria-hidden="true">
+                                <li class="page-new"><a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#" title="New page" class="disabled ">New sub-page</a></li>
+                    <li class="page-history"><a href="https://developer.mozilla.org/index.php?title=en/DOM/Manipulating_the_browser_history&action=history" title="Page history">History</a></li>
+                    <li class="page-talk">	<a href="https://developer.mozilla.org/Talk:en/DOM/Manipulating_the_browser_history" title="Talk page">Talk page</a>
+</li>
+                                                        <li class="page-print">	<a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#" onclick="return window.print();" title="Print page">Print page</a>
+</li>
+            <li class="page-backlinks"><a href="https://developer.mozilla.org/index.php?title=Special:Article&type=backlinks&pageid=52456">Pages that link here</a></li>      </ul>
+    </li>
+      <li class="menu">
+      <a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#" class="toggle">Languages</a>
+      <ul style="display: none; visibility: hidden; "><li><a rel="internal" href="https://developer.mozilla.org/ja/DOM/Manipulating_the_browser_history" title="ja/DOM/Manipulating_the_browser_history">日本語</a></li></ul>    </li>
+    </ul>
+</nav>
+
+  <nav class="crumbs" role="navigation">
+    <ol>
+      <li class="crumb-one"><a href="https://developer.mozilla.org/">MDN</a></li>
+      <li class="crumb-two"><a href="https://developer.mozilla.org/docs">Docs</a></li>
+    <li class="first"><a href="https://developer.mozilla.org/" class="deki-ns">MDN</a></li>
+<li class="second"><a href="https://developer.mozilla.org/en" class="deki-ns">MDN</a></li>
+<li><a href="https://developer.mozilla.org/en/DOM" class="deki-ns">Document Object Model (DOM)</a></li>
+<li class="last"><a href="./Manipulating the browser history - MDN_files/Manipulating the browser history - MDN.html" class="deki-ns current">Manipulating the browser history</a></li> 
+    </ol>
+  </nav>
+
+</div>
+</section>
+
+<section id="content">
+<div class="wrap">
+  <div id="content-main" class="full">
+
+    <div id="sessionMsg"><div class="inner"><ul></ul></div></div>
+        
+    <article class="article PageDW-enDOMManipulatingthebrowserhistory" role="main">
+            
+            <div class="page-title hideforedit">
+              <h1 class="first" id="title">Manipulating the browser history</h1>            
+      
+              <ul id="page-buttons">
+          <li class="page-edit"><a href="https://developer.mozilla.org/index.php?title=Special:Userlogin&returntotitle=en%2FDOM%2FManipulating+the+browser+history" class="disabled" title="Log in or sign up to edit this page">Edit</a></li>
+          <li class="page-watch"><a href="https://developer.mozilla.org/index.php?title=Special:Userlogin&returntotitle=en%2FDOM%2FManipulating+the+browser+history" class="disabled" title="Log in or sign up to add this page to your watch list">Watch</a></li>
+        </ul> 
+            </div>
+      
+    <div class="page-content boxed">
+
+     
+      <div id="article-nav" class="hideforedit">      
+              <div class="page-toc">
+          <h2>Table of contents</h2>
+          <ol style="list-style-type:none; margin-left:0px; padding-left:0px;"><li><span>1.</span> <a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#Traveling_through_history" rel="internal">Traveling through history</a><ol style="list-style-type:none; margin-left:0px; padding-left:15px;"><li><span>1.1.</span> <a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#Moving_forward_and_backward" rel="internal">Moving forward and backward</a></li><li><span>1.2.</span> <a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#Moving_to_a_specific_point_in_history" rel="internal">Moving to a specific point in history</a></li></ol></li><li><span>2.</span> <a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#Adding_and_modifying_history_entries" rel="internal">Adding and modifying history entries</a><ol style="list-style-type:none; margin-left:0px; padding-left:15px;"><li><span>2.1.</span> <a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#Example" rel="internal">Example</a></li><li><span>2.2.</span> <a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#The_pushState().C2.A0method" rel="internal">The pushState()&nbsp;method</a></li><li><span>2.3.</span> <a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#The_replaceState().C2.A0method" rel="internal">The replaceState()&nbsp;method</a></li><li><span>2.4.</span> <a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#The_popstate_event" rel="internal">The popstate event</a></li><li><span>2.5.</span> <a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#Reading_the_current_state" rel="internal">Reading the current state</a></li></ol></li><li><span>3.</span> <a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#Browser_compatibility" rel="internal">Browser compatibility</a></li><li><span>4.</span> <a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#See_also" rel="internal">See also</a></li></ol>        </div>
+      
+        <ul class="page-anchors">
+          <li class="anchor-tags"><a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#page-tags" title="Jump to tags for this article">Tags</a></li>
+          <li class="anchor-files"><a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#page-files" title="Jump to files for this article">Files</a></li>
+        </ul>
+
+              <div id="deki-page-alerts" class="disabled">
+				<div class="toggle">
+					<a href="javascript:void(0);" class="off">
+						<span>Page Notifications</span>
+						<span class="status">Off</span>
+					</a>
+				</div></div>      
+      
+      </div> 
+    
+            
+      <div id="page-top"><div id="pageToc"><div class="pageToc"><h5>Table of contents</h5><ol style="list-style-type:none; margin-left:0px; padding-left:0px;"><li><span>1.</span> <a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#Traveling_through_history" rel="internal">Traveling through history</a><ol style="list-style-type:none; margin-left:0px; padding-left:15px;"><li><span>1.1.</span> <a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#Moving_forward_and_backward" rel="internal">Moving forward and backward</a></li><li><span>1.2.</span> <a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#Moving_to_a_specific_point_in_history" rel="internal">Moving to a specific point in history</a></li></ol></li><li><span>2.</span> <a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#Adding_and_modifying_history_entries" rel="internal">Adding and modifying history entries</a><ol style="list-style-type:none; margin-left:0px; padding-left:15px;"><li><span>2.1.</span> <a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#Example" rel="internal">Example</a></li><li><span>2.2.</span> <a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#The_pushState().C2.A0method" rel="internal">The pushState()&nbsp;method</a></li><li><span>2.3.</span> <a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#The_replaceState().C2.A0method" rel="internal">The replaceState()&nbsp;method</a></li><li><span>2.4.</span> <a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#The_popstate_event" rel="internal">The popstate event</a></li><li><span>2.5.</span> <a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#Reading_the_current_state" rel="internal">Reading the current state</a></li></ol></li><li><span>3.</span> <a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#Browser_compatibility" rel="internal">Browser compatibility</a></li><li><span>4.</span> <a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#See_also" rel="internal">See also</a></li></ol></div></div><div class="pageText" id="pageText"><p>The DOM&nbsp;<code><a rel="custom" href="https://developer.mozilla.org/en/DOM/window">window</a></code>
+ object provides access to the browser's history through the <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/window.history">history</a></code>
+ object. It exposes useful methods and properties that let you move back and forth through the user's history, as well as -- starting with HTML5 -- manipulate the contents of the history stack.</p>
+<div id="section_1"><span id="Traveling_through_history"></span><h2 class="editable">Traveling through history</h2>
+<p>Moving backward and forward through the user's history is done using the <code>back()</code>, <code>forward()</code>, and <code>go()</code>&nbsp;methods.</p>
+<div id="section_2"><span id="Moving_forward_and_backward"></span><h3 class="editable">Moving forward and backward</h3>
+<p>To move backward through history, just do:</p>
+<pre>window.history.back();
+</pre>
+<p>This will act exactly like the user clicked on the Back button in their browser toolbar.</p>
+<p>Similarly, you can move forward (as if the user clicked the Forward button), like this:</p>
+<pre>window.history.forward();
+</pre>
+</div><div id="section_3"><span id="Moving_to_a_specific_point_in_history"></span><h3 class="editable">Moving to a specific point in history</h3>
+<p>You can use the <code>go()</code>&nbsp;method to load a specific page from session history, identified by its relative position to the current page (with the current page being, of course, relative index 0).</p>
+<p>To move back one page (the equivalent of calling <code>back()</code>):</p>
+<pre><code>window.history.go(-1);</code>
+</pre>
+<p>To move forward a page, just like calling <code>forward()</code>:</p>
+<pre><code>window.history.go(1);</code>
+</pre>
+<p>Similarly, you can move forward 2 pages by passing 2, and so forth.</p>
+<p>You can determine the number of pages in the history stack by looking at the value of the length property:</p>
+<pre>var numberOfEntries = window.history.length;
+</pre>
+<div class="note"><strong>Note:</strong> Internet Explorer supports passing string URLs as a parameter to <code>go()</code>; this is non-standard and not supported by Gecko.</div>
+</div></div><div id="section_4"><span id="Adding_and_modifying_history_entries"></span><h2 class="editable">Adding and modifying history entries</h2>
+<p>
+
+</p><div class="lang lang-en" style="border:solid 1px maroon; overflow:hidden; margin: 10px 0px; padding: 0px 10px; background-color: rgb(254, 244, 156); font-weight: bold; text-align: center;"> <p style="margin: 4px 0px;">Introduced in Gecko 2</p> (Firefox 4 / Thunderbird 3.3 / SeaMonkey 2.1)
+</div>
+
+
+
+
+
+
+
+
+<p></p>
+<p>HTML5 introduced the <code>history.pushState()</code> and <code>history.replaceState()</code> methods, which allow you to add and modify history entries, respectively. These methods work in conjunction with the <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/window.onpopstate">window.onpopstate</a></code>
+ event.</p>
+<p>Using <code>history.pushState()</code>&nbsp;changes the referrer that gets used in the HTTP&nbsp;header for <a title="en/XMLHttpRequest" rel="internal" href="https://developer.mozilla.org/en/DOM/XMLHttpRequest"><code>XMLHttpRequest</code></a> objects created after you change the state. The referrer will be the URL&nbsp;of the document whose window is <code>this</code> at the time of creation of the <a title="en/XMLHttpRequest" rel="internal" href="https://developer.mozilla.org/en/DOM/XMLHttpRequest"><code>XMLHttpRequest</code></a> object.</p>
+<div id="section_5"><span id="Example"></span><h3 class="editable">Example</h3>
+<p>Suppose http://mozilla.org/foo.html executes the following JavaScript:</p>
+<pre>var stateObj = { foo: "bar" };
+history.pushState(stateObj, "page 2", "bar.html");
+</pre>
+<p>This will cause the URL bar to display http://mozilla.org/bar.html, but won't cause the browser to load <code>bar.html</code> or even check that <code>bar.html</code> exists.</p>
+<p>Suppose now that the user now navigates to http://google.com, then clicks back. At this point, the URL bar will display http://mozilla.org/bar.html, and the page will get a <code>popstate</code> event whose <em>state object</em> contains a copy of <code>stateObj</code>. The page itself will look like <code>foo.html</code>, although the page might modify its contents during the <code>popstate</code> event.</p>
+<p>If we click back again, the URL will change to http://mozilla.org/foo.html, and the document will get another <code>popstate</code> event, this time with a null state object. Here too, going back doesn't change the document's contents from what they were in the previous step, although the document might update its contents manually upon receiving the <code>popstate</code> event.</p>
+</div><div id="section_6"><span id="The_pushState().C2.A0method"></span><h3 class="editable">The pushState()&nbsp;method</h3>
+<p><code>pushState()</code> takes three parameters: a state object, a title (which is currently ignored), and (optionally) a URL. Let's examine each of these three parameters in more detail:</p>
+<ul> <li> <p><strong>state object</strong> — The state object is a JavaScript object which is associated with the new history entry created by <code>pushState()</code>. Whenever the user navigates to the new state, a <code>popstate</code> event is fired, and the <code>state</code> property of the event contains a copy of the history entry's state object.</p> <p>The state object can be anything that can be serialized. Because Firefox saves state objects to the user's disk so they can be restored after the user restarts her browser, we impose a size limit of 640k characters on the serialized representation of a state object. If you pass a state object whose serialized representation is larger than this to <code>pushState()</code>, the method will throw an exception. If you need more space than this, you're encouraged to use <code>sessionStorage</code> and/or <code>localStorage</code>.</p> </li> <li> <p><strong>title</strong> — Firefox currently ignores this parameter, although it may use it in the future. Passing the empty string here should be safe against future changes to the method. Alternatively, you could pass a short title for the state to which you're moving.</p> </li> <li> <p><strong>URL</strong> — The new history entry's URL is given by this parameter. Note that the browser won't attempt to load this URL after a call to <code>pushState()</code>, but it might attempt to load the URL later, for instance after the user restarts her browser. The new URL does not need to be absolute; if it's relative, it's resolved relative to the current URL. The new URL must be of the same origin as the current URL; otherwise, <code>pushState()</code> will throw an exception. This parameter is optional; if it isn't specified, it's set to the document's current URL.</p> </li>
+</ul>
+<div class="note"><strong>Note:</strong> In Gecko 2.0 (Firefox 4 / Thunderbird 3.3 / SeaMonkey 2.1)
+ through Gecko 5.0 (Firefox 5.0 / Thunderbird 5.0 / SeaMonkey 2.2)
+, the passed object is serialized using JSON. Starting in Gecko 6.0 (Firefox 6.0 / Thunderbird 6.0 / SeaMonkey 2.3)
+, the object is serialized using <a title="en/DOM/The structured clone algorithm" rel="internal" href="https://developer.mozilla.org/en/DOM/The_structured_clone_algorithm">the structured clone algorithm</a>. This allows a wider variety of objects to be safely passed.</div>
+<p>In a sense, calling <code>pushState()</code> is similar to setting <code>window.location = "#foo"</code>, in that both will also create and activate another history entry associated with the current document. But <code>pushState()</code> has a few advantages:</p>
+<ul> <li>The new URL can be any URL in the same origin as the current URL. In contrast, setting <code>window.location</code> keeps you at the same <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/document">document</a></code>
+ only if you modify only the hash.</li> <li>You don't have to change the URL if you don't want to. In contrast, setting <code>window.location = "#foo";</code> only creates a new history entry if the current hash isn't <code>#foo</code>.</li> <li>You can associate arbitrary data with your new history entry. With the hash-based approach, you need to encode all of the relevant data into a short string.</li>
+</ul>
+<p>Note that <code>pushState()</code> never causes a <code>hashchange</code> event to be fired, even if the new URL differs from the old URL only in its hash.</p>
+</div><div id="section_7"><span id="The_replaceState().C2.A0method"></span><h3 class="editable">The replaceState()&nbsp;method</h3>
+<p><code>history.replaceState()</code> operates exactly like <code>history.pushState()</code> except that <code>replaceState()</code> modifies the current history entry instead of creating a new one.</p>
+<p><code>replaceState()</code> is particularly useful when you want to update the state object or URL of the current history entry in response to some user action.</p>
+<div class="note"><strong>Note:</strong> In Gecko 2.0 (Firefox 4 / Thunderbird 3.3 / SeaMonkey 2.1)
+ through Gecko 5.0 (Firefox 5.0 / Thunderbird 5.0 / SeaMonkey 2.2)
+, the passed object is serialized using JSON. Starting in Gecko 6.0 (Firefox 6.0 / Thunderbird 6.0 / SeaMonkey 2.3)
+, the object is serialized using <a title="en/DOM/The structured clone algorithm" rel="internal" href="https://developer.mozilla.org/en/DOM/The_structured_clone_algorithm">the structured clone algorithm</a>. This allows a wider variety of objects to be safely passed.</div>
+</div><div id="section_8"><span id="The_popstate_event"></span><h3 class="editable">The popstate event</h3>
+<p>A <code>popstate</code> event is dispatched to the window every time the active history entry changes. If the history entry being activated was created by a call to <code>pushState</code> or affected by a call to <code>replaceState</code>, the <code>popstate</code> event's <code>state</code> property contains a copy of the history entry's state object.</p>
+<p>See <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/window.onpopstate">window.onpopstate</a></code>
+ for sample usage.</p>
+</div><div id="section_9"><span id="Reading_the_current_state"></span><h3 class="editable">Reading the current state</h3>
+<p>When your page loads, it might have a non-null state object.&nbsp; This can happen, for example, if the page sets a state object (using <code>pushState()</code> or <code>replaceState()</code>)&nbsp;and then the user restarts her browser.&nbsp; When your page reloads, the page will receive an <span style="font-family: Courier New;">onload</span><span style="font-family: Helvetica;"> event, but no <span style="font-family: Courier New;">popstate</span> event.</span>&nbsp; However, if you read the <span style="font-family: Courier New;">history.state</span> property, you'll get back the state object you would have gotten if a <span style="font-family: Courier New;">popstate</span> had fired.</p>
+<p>You can read the state of the current history entry without waiting for a <code>popstate</code> event using the <code>history.state</code> property like this:</p>
+<pre>var currentState = history.state;
+</pre>
+</div></div><div id="section_10"><span id="Browser_compatibility"></span><h2 class="editable">Browser compatibility</h2>
+<p>
+<script type="text/javascript">/*<![CDATA[*/
+        $(function() {
+            $('.htab').append($('#compat-desktop'));
+            $('.htab').append($('#compat-mobile'));
+            var $items = $('.htab>ul>li');
+            $items.click(function() {
+                $items.removeClass('selected');
+                $(this).addClass('selected');
+
+                var index = $items.index($(this));
+                $('.htab>div').hide().eq(index).show();
+            }).eq(0).click();
+        });
+    /*]]>*/</script>
+</p><div class="htab"><a name="AutoCompatibilityTable"></a>
+<ul> <li class="selected">Desktop</li> <li>Mobile</li>
+</ul>
+<div id="compat-desktop" style="display: block; "> <table class="compat-table"> <tbody> <tr> <th>Feature</th> <th>Chrome</th> <th>Firefox (Gecko)</th> <th>Internet Explorer</th> <th>Opera</th> <th>Safari</th> </tr> <tr> <td>replaceState, pushState</td> <td>5</td> <td>4.0 (2.0)
+</td> <td>10</td> <td>11.50</td> <td>5.0</td> </tr> <tr> <td>history.state</td> <td>18</td> <td>4.0 (2.0)
+</td> <td>10</td> <td>11.50</td> <td><span style="color: rgb(255, 0, 0);" title="Not supported.">--</span></td> </tr> </tbody> </table>
+</div><div id="compat-mobile" style="display: none; "> <table class="compat-table"> <tbody> <tr> <th>Feature</th> <th>Android</th> <th>Firefox Mobile (Gecko)</th> <th>IE Mobile</th> <th>Opera Mobile</th> <th>Safari Mobile</th> </tr> <tr> <td>replaceState, pushState</td> <td><span title="Compatibility unknown; please update this." style="color: rgb(255, 153, 0);">?</span></td> <td><span title="Compatibility unknown; please update this." style="color: rgb(255, 153, 0);">?</span></td> <td><span title="Compatibility unknown; please update this." style="color: rgb(255, 153, 0);">?</span></td> <td><span title="Compatibility unknown; please update this." style="color: rgb(255, 153, 0);">?</span></td> <td><span title="Compatibility unknown; please update this." style="color: rgb(255, 153, 0);">?</span></td> </tr> <tr> <td>history.state</td> <td><span title="Compatibility unknown; please update this." style="color: rgb(255, 153, 0);">?</span></td> <td><span title="Compatibility unknown; please update this." style="color: rgb(255, 153, 0);">?</span></td> <td><span title="Compatibility unknown; please update this." style="color: rgb(255, 153, 0);">?</span></td> <td><span title="Compatibility unknown; please update this." style="color: rgb(255, 153, 0);">?</span></td> <td><span title="Compatibility unknown; please update this." style="color: rgb(255, 153, 0);">?</span></td> </tr> </tbody> </table>
+</div></div><p></p>
+
+
+<p>You may use <a class="link-https" title="https://github.com/balupton/history.js" rel="external" href="https://github.com/balupton/history.js" target="_blank">History.js</a> to overcome the cross-browser compatibility <a class="link-https" title="https://github.com/balupton/history.js/wiki/The-State-of-the-HTML5-History-API" rel="external" href="https://github.com/balupton/history.js/wiki/The-State-of-the-HTML5-History-API" target="_blank">problems</a>.</p>
+</div><div id="section_11"><span id="See_also"></span><h2 class="editable">See also</h2>
+<ul> <li><code><a rel="custom" href="https://developer.mozilla.org/en/DOM/window.history">window.history</a></code>
+</li> <li><code><a rel="custom" href="https://developer.mozilla.org/en/DOM/window.onpopstate">window.onpopstate</a></code>
+</li>
+</ul>
+<p></p></div></div></div>
+            <section class="page-meta">
+                  <section id="page-tags">
+            <h2>Tags <span class="sub">(3)</span></h2>
+              <a href="https://developer.mozilla.org/index.php?title=Special:Tags&pageId=52456" class="disabled" onclick="return false;" id="deki-page-tags-toggleview">Edit tags</a>              <div id="deki-page-tags"><ul class="tags"><li><a href="https://developer.mozilla.org/Special:Tags?tag=DOM" title="DOM" tagid="10" class="text">DOM</a></li><li><a href="https://developer.mozilla.org/Special:Tags?tag=HTML5" title="HTML5" tagid="1621" class="text">HTML5</a></li><li><a href="https://developer.mozilla.org/Special:Tags?tag=history" title="history" tagid="1732" class="text">history</a></li></ul></div>          </section>
+        
+                  <section id="page-files">
+            <h2>Attachments <span class="sub">(0)</span></h2>
+            <div id="pageFiles"><div class="nofiles">&nbsp;</div></div>            <div id="deki-image-gallery-lite"><table class="table empty" width="100%" cellspacing="0" cellpadding="0" border="0"><colgroup><col width="33%"><col width="33%"><col width="33%"></colgroup><tbody><tr class="bg1"><th class="col1" colspan="3">Images 0</th></tr><tr class="bg2"><td class="col1 empty" colspan="3">No images to display in the gallery.</td></tr></tbody></table></div>            <p class="add"><a title="Attach file" class="disabled ">Attach file</a></p>
+          </section>
+        
+                        
+        </section>
+        </div>
+
+    </article>
+
+    <p class="last-mod hideforedit">
+      Page last modified <a href="https://developer.mozilla.org/index.php?title=en/DOM/Manipulating_the_browser_history&action=history" title="18:02, 17 May 2012">18:02, 17 May 2012</a> by <a href="https://developer.mozilla.org/User:ebidel" class="link-user" rel="internal">ebidel</a>    </p>
+
+  </div><!-- /#content-main -->
+
+</div><!-- /.wrap -->
+</section><!-- /#content -->
+
+
+
+<footer id="site-info" class="footer" role="contentinfo">
+<div class="wrap">
+  <div id="legal">
+    <img src="./Manipulating the browser history - MDN_files/mdn-logo-tiny.png" alt="" width="42" height="48">
+    <p id="copyright">© 2012 Mozilla Developer Network</p>
+    <p>Content is available under <a href="https://developer.mozilla.org/Project:Copyrights">these licenses</a> • <a href="https://developer.mozilla.org/Project:en/About">About MDN</a> • <a href="http://www.mozilla.org/en-US/privacy">Privacy Policy</a> • <a href="https://developer.mozilla.org/Project:en/Using_the_Mozilla_Developer_Center">Help</a></p>
+  </div>
+      <ul class="user-state signed-out superfish" data-browserid-header-signin-html="/en-US/users/browserid_header_signin_html" style="display: block; ">    <li class="user-signin menu">
+      <form class="browserid" action="https://developer.mozilla.org/en-US/users/browserid_verify" method="POST"><div style="display:none;"><input type="hidden" id="csrfmiddlewaretoken" name="csrfmiddlewaretoken" value="83f3a8fc2028d21844dbda9195523cc0"></div>
+        <input id="next" name="next" type="hidden" value="/en/DOM/Manipulating_the_browser_history">
+        <input required="required" type="hidden" name="assertion" id="id_assertion">
+                        <a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#" target="_blank" class="browserid-signin toggle" aria-haspopup="true" title="Sign in with BrowserID">Sign in</a> 
+                <div class="browserid-info sub-menu" aria-hidden="true">
+                <h3>What's this?</h3> <p>MDN has switched to <a href="https://browserid.org/" target="_blank" rel="external">BrowserID</a>, a safe and simple way to sign in with just your e-mail address. <a href="http://identity.mozilla.com/post/12950196039/deploying-browserid-at-mozilla" rel="external">Learn more about why Mozilla is using BrowserID</a>.</p> <p><strong>Returning members:</strong> sign in with BrowserID and you'll be connected to your MDN profile (all your information is still here).</p> <p><strong>New members:</strong> sign in with BrowserID first, then you'll be able to set up your new MDN profile.</p>          <p><a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#" target="_blank" class="browserid-signin" title="Sign in with BrowserID">Sign in</a></p>
+        </div>
+              </form>
+    </li></ul>
+  </div>
+</footer>
+
+
+			
+<div class="ui-msg-wrap" id="MTMessage" style="display: none;">
+	<div class="ui-msg ui-errormsg" id="MTMessageStyle">
+		<div class="ui-msg-opt">
+			<ul>
+				<li><a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#" class="dismiss" onclick="return MTMessage.Hide();">dismiss message</a></li>
+				<li><a href="https://developer.mozilla.org/en/DOM/Manipulating_the_browser_history#" class="details" id="MTMessageDetailsLink" onclick="return MTMessage.ShowDetails(this);">view details</a></li>
+			</ul>
+			<div class="ui-msg-autoclose">
+				<span id="MTMessageUnpaused" style="display: inline;">Message will close by itself in <span id="MTMessageTimer"></span> seconds</span>
+				<span id="MTMessagePaused" style="display: none;">Message timer has been stopped</span>
+			</div>
+		</div>
+		<div class="ui-msg-header" id="MTMessageHeader"></div>
+		<div class="ui-msg-desc" id="MTMessageDesc"></div>
+		<div class="ui-msg-desc" id="MTMessageDetails" style="display: none;">
+			<p>Viewing Details:</p>
+		</div>
+	</div>
+</div>
+<!-- Served by dekiwiki2.webapp.scl3.mozilla.com in 0.80 secs. -->
+<!--
+	Verb      Path                                              Time(ms)       API Stats
+	GET       /deki/site/settings                                   4.73       request-time-ms=2; mysql-queries=1; mysql-time-ms=1; cache-ratio=0.00; cache-hit=0; cache-miss=-1; cache-del=0; cache-ins=1;
+	GET       /deki/users/=Anonymous                                7.23       request-time-ms=6; mysql-queries=4; mysql-time-ms=4; cache-ratio=-0.67; cache-hit=2; cache-miss=-5; cache-del=0; cache-ins=5;
+	GET       /deki/license                                         6.53       request-time-ms=3; mysql-queries=2; mysql-time-ms=2; cache-ratio=-0.50; cache-hit=1; cache-miss=-3; cache-del=0; cache-ins=3;
+	GET       /deki/pages/52456/contents                          137.54       request-time-ms=136; mysql-queries=51; mysql-time-ms=68; cache-ratio=1.18; cache-hit=348; cache-miss=-52; cache-del=0; cache-ins=52;
+	GET       /deki/pages/52456                                    32.17       request-time-ms=29; mysql-queries=21; mysql-time-ms=21; cache-ratio=25.00; cache-hit=25; cache-miss=-24; cache-del=0; cache-ins=24;
+	GET       /deki/pages/52456/info                                5.94       request-time-ms=4; mysql-queries=3; mysql-time-ms=3; cache-ratio=-0.67; cache-hit=2; cache-miss=-5; cache-del=0; cache-ins=5;
+	GET       /deki/pages/52456/tags                                8.25       request-time-ms=7; mysql-queries=5; mysql-time-ms=5; cache-ratio=-0.75; cache-hit=3; cache-miss=-7; cache-del=0; cache-ins=7;
+	GET       /deki/site/properties                                15.79       request-time-ms=13; mysql-queries=4; mysql-time-ms=11; cache-ratio=-0.25; cache-hit=1; cache-miss=-5; cache-del=0; cache-ins=5;
+	GET       /deki/site/properties/urn%253Aui.deki.mindtouch.com%2523html.mdn.Transitional    14.57       request-time-ms=13; mysql-queries=3; mysql-time-ms=12; cache-ratio=-0.50; cache-hit=1; cache-miss=-3; cache-del=0; cache-ins=3;
+	GET       /deki/site/nav/=en%252FDOM%252FManipulating%2Bthe%2Bbrowser%2Bhistory/full   510.34       request-time-ms=504; mysql-queries=6; mysql-time-ms=391; cache-ratio=-6.00; cache-hit=6; cache-miss=-7; cache-del=0; cache-ins=7;
+	GET       /deki/pages/52456/tags                               10.37       request-time-ms=8; mysql-queries=5; mysql-time-ms=7; cache-ratio=-0.75; cache-hit=3; cache-miss=-7; cache-del=0; cache-ins=7;
+	                                                             =======
+	                                                     Total:   753.45      
+	                                                     Ideal:   743.08      
+-->
+ 
+<div id="popupMessage"></div> <div id="popupMask"></div>
+<div id="menuFiller"></div>
+<div id="bodyHeight"></div>
+
+<script src="./Manipulating the browser history - MDN_files/tabzilla.js"></script>
+<script src="./Manipulating the browser history - MDN_files/include.js"></script>
+<script src="./Manipulating the browser history - MDN_files/jsapi"></script>
+<script src="./Manipulating the browser history - MDN_files/javascript.min.js"></script><script src="./Manipulating the browser history - MDN_files/saved_resource" type="text/javascript"></script><script src="./Manipulating the browser history - MDN_files/default+en.I.js" type="text/javascript"></script>
+  <script type="text/javascript">
+    // If found, wire up the BrowserID sign in button
+    function bindBrowserIDSignin() {
+      $('.browserid-signin').click(function (e) {
+        if ( !$(this).hasClass('toggle') ) {
+          navigator.id.getVerifiedEmail(function(assertion) {
+              if (!assertion) { return; }
+              $('input[name="assertion"]').val(assertion.toString());
+              $('form.browserid').first().submit();
+          });
+          return false;
+        }
+      });
+    }
+    $(document).ready(function(){
+        $('ul.signed-out').hide();
+        $('ul.signed-out').load($('ul.signed-out').attr('data-browserid-header-signin-html'), function() {
+          $('.toggle', $(this)).click(function() {
+            $(this).siblings(".sub-menu").slideToggle(150).removeAttr("aria-hidden");
+            return false;
+          });
+          bindBrowserIDSignin();
+        });
+        $('ul.signed-out').show();
+    });
+  </script>
+
+ 
+<script type="text/javascript">
+//<![CDATA[
+var _tag=new WebTrends();
+_tag.dcsGetId();
+// Add custom parameters here.
+//_tag.DCSext.param_name=param_value;
+_tag.dcsCollect();
+//]]>>
+</script>
+<noscript>
+&lt;div&gt;&lt;img alt="DCSIMG" id="DCSIMG" width="1" height="1" src="https://statse.webtrendslive.com/dcs8yrjuavz5bdaun34r2o8bi_8o8x/njs.gif?dcsuri=/nojavascript&amp;amp;WT.js=No&amp;amp;WT.tv=8.6.2"/&gt;&lt;/div&gt;
+</noscript>
+<!-- END OF SmartSource Data Collector TAG -->
+
+ 
+
+
+<div style="display: none; " id="hiddenlpsubmitdiv"></div><script>try{for(var lastpass_iter=0; lastpass_iter < document.forms.length; lastpass_iter++){ var lastpass_f = document.forms[lastpass_iter]; if(typeof(lastpass_f.lpsubmitorig2)=="undefined"){ lastpass_f.lpsubmitorig2 = lastpass_f.submit; lastpass_f.submit = function(){ var form=this; var customEvent = document.createEvent("Event"); customEvent.initEvent("lpCustomEvent", true, true); var d = document.getElementById("hiddenlpsubmitdiv"); for(var i = 0; i < document.forms.length; i++){ if(document.forms[i]==form){ d.innerText=i; } } d.dispatchEvent(customEvent); form.lpsubmitorig2(); } } }}catch(e){}</script></body></html>
