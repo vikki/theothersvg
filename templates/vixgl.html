@@ -1,7 +1,11 @@
 <html>
 <head>
-<script src="static/glMatrix-0.9.5.min.js"></script>
-<script type="text/javascript" src="static/webgl-utils.js"></script>
+<script src="static/scripts/glMatrix-0.9.5.min.js"></script>
+<script type="text/javascript" src="static/scripts/webgl-utils.js"></script>
+<script type="text/javascript" src="static/scripts/planet.js"></script>
+<script type="text/javascript" src="static/scripts/camera.js"></script>
+<script type="text/javascript" src="static/scripts/vixgl.js"></script>
+<script type="text/javascript" src="static/scripts/utils.js"></script>
 <script id="fragmentShader" type="x-shader/x-fragment">
     precision mediump float;
 
@@ -56,7 +60,6 @@
     }
 </script>
 
-
 <script id="dummyVertexShader" type="x-shader/x-vertex">
     attribute vec3 aVertexPosition;
 
@@ -71,29 +74,10 @@
 </script>
 
 <script>
-   var glCtx = function(canvasId, fragmentShaderId, vertexShaderId) {
-      this.canvasId = canvasId;
-      this.fragmentShaderId = fragmentShaderId;
-      this.vertexShaderId = vertexShaderId;
-      this.mvMatrix = mat4.create();
-      this.pMatrix = mat4.create();
-   };
-
     var dummy = new glCtx('dummygl', 'dummyFragmentShader', 'dummyVertexShader');
     var proper = new glCtx('vixgl', 'fragmentShader', 'vertexShader');
 
     dummy.initTextures = function()  {
-    };
-
-    glCtx.prototype.drawStuff = function() {
-       this.initGL();
-       this.initShaders();
-       this.initBuffers();
-       // don't do for dummy?
-       this.initTextures();
-
-       this.gl.clearColor(0.0, 0.0, 0.0, 0.1); 
-       this.gl.enable(this.gl.DEPTH_TEST);
     };
 
    var drawStuff = function(vvc) {
@@ -103,28 +87,6 @@
        proper.drawStuff(); 
 
        tick();
-
-    };
-
-   glCtx.prototype.initGL = function() {
-     var canvas = document.getElementById(this.canvasId);
-     // ~= gl but future proof : canvas.getContext('experimental-webgl');
-     //properGL = WebGLUtils.setupWebGL(canvas);
-     this.gl = canvas.getContext('experimental-webgl', {preserveDrawingBuffer: true});
-     this.viewportWidth = canvas.width;
-     this.viewportHeight = canvas.height;
-   };
-
-    var updateViewingAngle = function(elapsed) {
-       var joggingAngle = 0.0005;
-       if (speed != 0) {
-         xPos -= Math.sin(yaw) * speed * elapsed;
-         zPos -= Math.cos(yaw) * speed * elapsed;
-
-         joggingAngle += elapsed * 0.6;  // 0.6 "fiddle factor" -- makes it feel more realistic :-)
-       }
-       yaw += yawRate * elapsed;
-       pitch += pitchRate * elapsed;
     };
 
     var lastTime = 0;
@@ -137,13 +99,12 @@
              planets[i].animate(elapsed); 
           }
 
+          // TODO aiee gonna have to use mixins for this to avoid dependency....
           updateViewingAngle(elapsed);
        }
 
        lastTime = timeNow;
     };
-
-
 
     // ask the browser to call us again, next time stuff needs to be animated
     // i.e. when we're in focus and the screen needs repainting
@@ -243,28 +204,6 @@
          gl.uniform3fv(prog.greyingFactor, planet.getGreyingFactor()); 
        };
 
-    glCtx.prototype.initShaders = function() {
-       var fragmentShader = getShader(this.gl, this.fragmentShaderId); 
-       var vertexShader   = getShader(this.gl, this.vertexShaderId); 
-
-       this.shaderProgram = this.gl.createProgram();
-       this.gl.attachShader(this.shaderProgram, vertexShader);
-       this.gl.attachShader(this.shaderProgram, fragmentShader);
-       this.gl.linkProgram(this.shaderProgram);
-
-       var foo = this.gl.getProgramParameter(this.shaderProgram, this.gl.LINK_STATUS);
-       if (!foo) {
-        console.log('webgl didnae work' + foo);
-       } else {
-          console.log('program is shiny');
-       }
-
-       this.gl.useProgram(this.shaderProgram); 
-
-       this.initUniforms();
-       this.initAttributes();
-    };
-
     dummy.initUniforms = function() {
        var prog = this.shaderProgram;
        var gl = this.gl;
@@ -291,103 +230,24 @@
          this.gl.uniform4fv( this.shaderProgram.color, [r,g,b,a]);
    };
 
-   glCtx.prototype.setupBuffer  = function(contents, itemSize, buffer) {
-       var gl = this.gl;
-       var newBuffer = gl.createBuffer();
-       newBuffer.itemSize = itemSize;
-       newBuffer.numItems = contents.length / itemSize;
-       gl.bindBuffer(buffer, newBuffer);
-       return newBuffer;
-   };
-
-   glCtx.prototype.setupFloat32Buffer = function(contents, itemSize, buffer) {
-       var gl = this.gl;
-       var newBuffer = this.setupBuffer(contents, itemSize, buffer);
-       gl.bufferData(buffer, new Float32Array(contents), gl.STATIC_DRAW);
-       return newBuffer;
-   };
-
-   glCtx.prototype.setupUint16Buffer = function(contents, itemSize, buffer) {
-       var gl = this.gl;
-       var newBuffer = this.setupBuffer(contents, itemSize, buffer);
-       gl.bufferData(buffer, new Uint16Array(contents), gl.STATIC_DRAW);
-       return newBuffer;
-   };
-
-    glCtx.prototype.initBuffers = function() {
-       this.vertices = {};
-       var latitudeBands = 30;
-       var longitudeBands = 30;
-       var radius = 2;
-
-       var vertexPositionData = [];
-       var normalData = [];
-       var textureCoordData = [];
-
-       for (var latNumber = 0; latNumber <= latitudeBands; latNumber++) {
-         var theta = latNumber * Math.PI / latitudeBands;
-         var sinTheta = Math.sin(theta);
-         var cosTheta = Math.cos(theta);
-   
-         for (var longNumber = 0; longNumber <= longitudeBands; longNumber++) {
-           var phi = longNumber * 2 * Math.PI / longitudeBands;
-           var sinPhi = Math.sin(phi);
-           var cosPhi = Math.cos(phi);
-   
-           var x = cosPhi * sinTheta;
-           var y = cosTheta;
-           var z = sinPhi * sinTheta;
-
-           var u = 1 - (longNumber / longitudeBands);
-           var v = 1 - (latNumber / latitudeBands);
-   
-           normalData.push(x);
-           normalData.push(y);
-           normalData.push(z);
-
-           textureCoordData.push(u);
-           textureCoordData.push(v);
-
-           vertexPositionData.push(radius * x);
-           vertexPositionData.push(radius * y);
-           vertexPositionData.push(radius * z);
-         }
+    var getSunImageUrl = function() {
+       if (isOffline() ){
+         return 'http://0.0.0.0:5000/static/happy_melon.gif';
+       } else {
+         return 'http://www.mathematik.uni-marburg.de/~menzel/images/Tutorial_Sun/SunTexture_2048.png';
        }
-
-       this.vertices.normalBuffer = this.setupFloat32Buffer(normalData, 3, this.gl.ARRAY_BUFFER);
-       this.vertices.textureCoordBuffer = this.setupFloat32Buffer(textureCoordData, 2, this.gl.ARRAY_BUFFER);
-       this.vertices.positionBuffer = this.setupFloat32Buffer(vertexPositionData, 3, this.gl.ARRAY_BUFFER);
-
-       indexData = [];
-       scaleBuffer = [];
-       for (var latNumber = 0; latNumber < latitudeBands; latNumber++) {
-         for (var longNumber = 0; longNumber < longitudeBands; longNumber++) {
-           var topLeft = (latNumber * (longitudeBands + 1)) + longNumber;
-           var bottomLeft = topLeft + longitudeBands + 1;
-           var topRight = topLeft + 1; 
-           var bottomRight  = bottomLeft + 1; 
-
-           indexData.push(topLeft);
-           indexData.push(bottomLeft);
-           indexData.push(topRight);
-   
-           indexData.push(bottomLeft);
-           indexData.push(bottomRight);
-           indexData.push(topRight);
-         }
-       }
-
-       this.vertices.indexBuffer = this.setupUint16Buffer(indexData, 1, this.gl.ELEMENT_ARRAY_BUFFER);
     };
 
-    var randPrimaryColor = function() {
-      return Math.round(Math.random() * 255);
+    var getPlanetTextureUrl = function(videoRef) {
+       if (isOffline() ){
+            return 'http://0.0.0.0:5000/static/happy_melon.gif?foo=' + videoRef;
+       } else {
+            return 'http://streaming.vikkiread.co.uk.s3.amazonaws.com/' + videoRef + '.jpg';
+       }
     };
-    var OPAQUE = 255;
 
     function initWorldObjects(vvc) {
-        var planet = new Planet(0.1, 0, [0,0,0],
-           'http://www.mathematik.uni-marburg.de/~menzel/images/Tutorial_Sun/SunTexture_2048.png', 0.5, [255,255,0,OPAQUE], 'the SUN', null);
+        var planet = new Planet(0.1, 0, [0,0,0], getSunImageUrl(), 0.5, [255,255,0,OPAQUE], 'the SUN', null);
         planets.push(planet);
 
         var maxShareCount = 0;
@@ -420,230 +280,38 @@
 
             var randColor = [randPrimaryColor(), randPrimaryColor(), randPrimaryColor(), OPAQUE];
 
-            var thumb = 'http://streaming.vikkiread.co.uk.s3.amazonaws.com/' + entry.videoRef + '.jpg';
-
-            var planet = new Planet(rTri, startingAngle, distFromCentre, thumb, scale, randColor, entry.title, entry.hostingSiteUrl, entry.videoRef);
+            var planet = new Planet(rTri, startingAngle, distFromCentre, getPlanetTextureUrl(entry.videoRef), scale, randColor, entry.title, entry.hostingSiteUrl, entry.videoRef);
             planets.push(planet);
         }   
     }
 
-    glCtx.prototype.initTextures = function() {
-        for (var i in planets) {
-           planets[i].origTex = this.initTexture(planets[i].imageUrl); 
-        }   
-    }
+// could probs do this with a shiny js api?? the offline api perhaps :P TODO
+var isOffline = function() {
+    return document.location.hash === '#offline';
+};
 
-    glCtx.prototype.initTexture = function(vid) {
-      var foo = new Image();
-      var ctx  = this;
-      foo.onload = function() {
-         // barf refactor
-         var realUrl = this.src;
-         var realUrlMatch =   this.src.match(/kitty\?img=([^&]*)&?/);
-         if(realUrlMatch && realUrlMatch.length > 0) {
-            realUrl = realUrlMatch[1];
-         }
-         var planet = getNewPlanetFromImageUrl(realUrl);
-         var texture = ctx.createTextureFromImage(this);
-         planet.texture = texture;
-      }
-      foo.src = '/kitty?img=' + vid;
-      return foo;
-    }
-
-// its an enormous ballache to get the index in here, so not bothering for now..
-glCtx.prototype.createTextureFromImage = function(image) {
-    image.crossOrigin = '';
-    if (!isPowerOfTwo(image.width) || !isPowerOfTwo(image.height)) {
-        // Scale up the texture to the next highest power of two dimensions.
-        var canvas = document.createElement("canvas");
-        canvas.style = 'background-color: #FFFF00';
-        canvas.width = nextHighestPowerOfTwo(image.width);
-        canvas.height = nextHighestPowerOfTwo(image.height);
-        var ctx = canvas.getContext("2d");
-
-        ctx.fillStyle = '#FFF';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // draw image in the middle
-        var centerX = canvas.width/2 - image.width/2; 
-        var centerY = canvas.height/2 - image.height/2; 
-        ctx.drawImage(image, centerX, centerY, image.width, image.height);
-
-        // TODO figure out middle properly, and size of text etc.)
-        ctx.moveTo(50, 50);
-        ctx.fillStyle = 'Red';
-        ctx.font = '30px sans-serif';
-        //ctx.fillText("fill", 60, 60);
-
-        image = canvas;
-    }
-
-    return this.makeTextureFrom(image);
-}
-
-   glCtx.prototype.makeTextureFrom = function(image)  {
-      var texture = this.gl.createTexture();
-      this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
-      this.gl.pixelStorei(this.gl.UNPACK_FLIP_Y_WEBGL, true);
-      this.gl.texImage2D(this.gl.TEXTURE_2D,0,this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, image);
-      this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST);
-      this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST);
-      // make the current texture null (tidy up)
-      this.gl.bindTexture(this.gl.TEXTURE_2D, null);
- 
-      return texture;
-    }
-
-// its an enormous ballache to get the index in here, so not bothering for now..
-glCtx.prototype.createTextureFromImage = function(image) {
-    var texture = this.gl.createTexture();
-    return this.updateTextureWith(image, texture);
-}
-
-glCtx.prototype.makeImageSuitableForTexture = function(image)  {
-    image.crossOrigin = '';
-    // it probs should be image.width not image.videoWidth or clientWidth but doesn't work with <video>
-    // fix with functional programming :P
-    if (image.tagName && image.tagName == 'IMG') {
-      var width = image.width;
-      var height = image.height;
-    }  else {
-      var width = image.videoWidth;
-      var height = image.videoHeight;
-    }
-
-    if (!isPowerOfTwo(width) || !isPowerOfTwo(height)) {
-        // Scale up the texture to the next highest power of two dimensions.
-        var canvas = document.createElement("canvas");
-        canvas.style = 'background-color: #FFFF00';
-        canvas.width = nextHighestPowerOfTwo(width);
-        canvas.height = nextHighestPowerOfTwo(height);
-        var ctx = canvas.getContext("2d");
-
-        // almost black, but a bit lighter so you can see the contours a bit
-        // better
-        ctx.fillStyle = '#1F1F1F';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // draw image in the middle
-        var centerX = canvas.width/2 - width/2; 
-        var centerY = canvas.height/2 - height/2; 
-        ctx.drawImage(image, centerX, centerY, width, height);
-
-        // TODO figure out middle properly, and size of text etc.)
-        ctx.moveTo(50, 50);
-        ctx.fillStyle = 'Red';
-        ctx.font = '30px sans-serif';
-        //ctx.fillText("fill", 60, 60);
-
-        image = canvas;
-    }
-
-    return image;
-}
-
-   glCtx.prototype.updateTextureWith = function(image, texture)  {
-      image = this.makeImageSuitableForTexture(image);
-
-      this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
-      this.gl.pixelStorei(this.gl.UNPACK_FLIP_Y_WEBGL, true);
-      this.gl.texImage2D(this.gl.TEXTURE_2D,0,this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, image);
-      this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST);
-      this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST);
-      // make the current texture null (tidy up)
-      this.gl.bindTexture(this.gl.TEXTURE_2D, null);
- 
-      return texture;
-    }
- 
-    glCtx.prototype.setMatrixUniforms = function() {
-       this.gl.uniformMatrix4fv(this.shaderProgram.pMatrixUniform,  false, this.pMatrix);
-       this.gl.uniformMatrix4fv(this.shaderProgram.mvMatrixUniform, false, this.mvMatrix);
-
-       var normalMatrix = mat3.create();
-       mat4.toInverseMat3(this.mvMatrix, normalMatrix);
-       mat3.transpose(normalMatrix);
-       this.gl.uniformMatrix3fv(this.shaderProgram.nMatrixUniform, false, normalMatrix);
-    };
-
-    glCtx.prototype.mvMatrixStack = []; 
-
-    glCtx.prototype.mvPushMatrix = function() {
-       var copy = mat4.create();
-       mat4.set(this.mvMatrix, copy);
-       this.mvMatrixStack.push(copy);
-    };
-
-    glCtx.prototype.mvPopMatrix = function() {
-       if (this.mvMatrixStack.length == 0) {
-          throw "no pringles for you!";
-       }
-       this.mvMatrix = this.mvMatrixStack.pop();
-    };
-
-    glCtx.prototype.drawScene = function() {
-         var gl = this.gl;
-         var shaderProgram = this.shaderProgram;
-         var vertices = this.vertices;
-
-         gl.viewport(0, 0, this.viewportWidth, this.viewportHeight);
-         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-         mat4.perspective(45, this.viewportWidth / this.viewportHeight, 0.1, 100.0, this.pMatrix);
-
-         mat4.identity(this.mvMatrix);
-         mat4.translate(this.mvMatrix, [0.0, 0.0, -30.0]);
-
-         mat4.rotate(this.mvMatrix, -pitch, [1,0,0]);
-         mat4.rotate(this.mvMatrix, -yaw, [0,1,0]);
-         mat4.translate(this.mvMatrix, [-xPos, -yPos, -zPos]);
-
-         for (var i in planets) {
-            this.mvPushMatrix();
-
-            var planet = planets[i];
-            var fakeIndex = (i*1)+1;
-
-            var rotAngle = fakeIndex*planet.rTri;
-            mat4.rotate(this.mvMatrix, planet.rTri, [0,1,0]);
-
-            mat4.translate(this.mvMatrix, planet.distFromCentre);
-            planets[i].draw(this);
-
-            this.mvPopMatrix();
-         }
-    };
-
-     var planets = [];
-
-
-  function Planet(rTri, startingAngle, distFromCentre, imageUrl, scale, color, title, video, videoRef ){
-    this.startingAngle = startingAngle;
-    this.distFromCentre = distFromCentre;
-    this.origImageUrl = imageUrl;
-    this.rotationAngleDuringWindow = rTri;
-    this.windowToRotate = 1000;
-    this.rTri = rTri;
-    this.origScale = scale;
-    this.color = color;
-    this.title = title;
-    this.video = video;
-    this.vidding = false;
-    this.videoRef = videoRef;
-
-    this.greyed = false; 
-    this.hack2 = false;
-    this.scale = scale;
-    this.imageUrl = imageUrl;
+var matchVideo = function(fromUrl) {
+  if (isOffline()) {
+     return fromUrl;
+  } else {
+     return fromUrl;
+     var realUrlMatch =   fromUrl.match(/kitty\?img=([^&]*)&?/);
+     if(realUrlMatch && realUrlMatch.length > 0) {
+        realUrl = realUrlMatch[1];
+     }
   }
+};
 
-Planet.prototype.getGreyingFactor = function() {
-  return this.greyed ? [0.3, 0.3, 0.3] : [1.0, 1.0, 1.0];
-}; 
+var getVideoLocation = function(videoRef) {
+  return isOffline() ? videoRef :  ' /kitty?img=' + videoRef;
+} ;
+
+var planets = [];
 
 function drawVid(videoRef) {
        var vid = document.createElement('video');
        vid.id = 'video' + videoRef;
+       // TODO unhorrible - use css
        vid.style.display = 'none';
        vid.height = '256'; 
        vid.width  = '256'; 
@@ -675,176 +343,32 @@ function removeOldVidEmbeds(current) {
    }
 }
 
-Planet.prototype.draw = function(ctx) {
-         ctx.mvPushMatrix();
-
-         //mat4.rotate(this.mvMatrix, rTri, [0,1,0]);
-         //if (this.vidding && !this.hack2) {
-         if (this.vidding ) {
-            mat4.rotate(ctx.mvMatrix, 3.0, [0,1,0]);
-            this.hack2 = true;
-         }
-
-         var gl = ctx.gl; 
-         var vertices = ctx.vertices;
-         var shaderProgram = ctx.shaderProgram;
-         gl.bindBuffer(gl.ARRAY_BUFFER, vertices.positionBuffer);
-         gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, vertices.positionBuffer.itemSize, gl.FLOAT, false, 0, 0);
-         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, vertices.indexBuffer);
-         gl.uniform1f( shaderProgram.scale, this.scale);
-
-         ctx.initProgVars(this);
-
-         mat4.translate(ctx.mvMatrix, [1.0, 0.0, 1.0]);
-
-         ctx.setMatrixUniforms();
-         gl.drawElements(gl.TRIANGLES, vertices.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
-    
-         ctx.mvPopMatrix();
+var getJsonUrl = function() {
+    if (isOffline() ) {
+       return "/static/fake.json";
+    } else {
+       return "/html?html=http://streaming.vikkiread.co.uk.s3.amazonaws.com/current_vvc.json";
+    }
 };
 
-var stopSpinning = false;
-
-Planet.prototype.animate = function(elapsed) {
-   if (!stopSpinning) {
-      var stopRotatingWhenViddingAndInCenter = (this.vidding && (this.rTri >= 1.73*Math.PI && this.rTri <= 1.77*Math.PI));
-         
-      if (stopRotatingWhenViddingAndInCenter) {
-         this.rTri = 1.75*Math.PI;
-         stopSpinning = true; 
-         this.scale = 0.3;
-
-         var vid = document.querySelector('#video' + this.videoRef);
-         if (vid) {
-            console.log('play vid');
-            vid.play();
-         }
-      } else {
-         this.scale = this.origScale;
-         // normalize rTri such that it is always less than 360deg (==Math.PI*2)
-         // you don't need to do this for the rotation maths to work cos its a sin wave but its handy for the where-ami maths :P
-         if (this.rTri <= 2*Math.PI) {
-            this.rTri += (this.rotationAngleDuringWindow * elapsed / this.windowToRotate);
-         } else {
-            this.rTri = 0;
-         }
-      }
-   }
-
-   if (this.vidding && stopSpinning) {
-      var vid = document.getElementById('video' + this.videoRef);
-      this.texture = proper.updateTextureWith(vid, this.texture);
-   }
-};
-
-
-
-function isPowerOfTwo(x) {
-    return (x & (x - 1)) == 0;
-}
- 
-function nextHighestPowerOfTwo(x) {
-    --x;
-    for (var i = 1; i < 32; i <<= 1) {
-        x = x | x >> i;
-    }
-    return x + 1;
-}
-
-
-function getXMLHttpRequest() 
-{
-    if (window.XMLHttpRequest) {
-        return new window.XMLHttpRequest;
-    }
-    else {
-        try {
-            return new ActiveXObject("MSXML2.XMLHTTP.3.0");
-        }
-        catch(ex) {
-            return null;
-        }
-    }
-}
-
-function handler()
-{
-    // is oReq in here cos of closures?
-    if (oReq.readyState == 4 /* complete */) {
-        if (oReq.status == 200) {
-            //var vvc = eval(oReq.responseText);
-            var vvc = JSON.parse(oReq.responseText);
-            console.dir(vvc);
-            drawStuff(vvc);
-        }
-    }
+function setupChartViz(oReq) {
+   var vvc = JSON.parse(oReq.responseText);
+   console.dir(vvc);
+   drawStuff(vvc);
 }
 
 function doStuff() {
-   // don't global me 
-   oReq = getXMLHttpRequest();
-   
-   if (oReq != null) {
-       //oReq.open("GET", "/static/fakevvc.js", true);    
-       //oReq.open("GET", "/html?html=http://viralvideochart.unrulymedia.com/all?format=app_json", true);    
-       oReq.open("GET", "/html?html=http://streaming.vikkiread.co.uk.s3.amazonaws.com/current_vvc.json", true);    
-       oReq.onreadystatechange = handler;    
-       oReq.send();
-   }
-   else {
-       window.alert("AJAX (XMLHTTP) not supported.");
-   }
+   doAjaxRequest(getJsonUrl(), setupChartViz);
+   // x-browser fail!!! TODO fixme
    document.getElementById('vixgl').addEventListener('click', handleClick, false);
 }
 
 function getNewPlanetFromImageUrl(imgToMatch) {
-  var equalsImgUrl = function(planet, imgToMatch) {
-     return planet.imageUrl == imgToMatch;
-  }; 
-
-  return getFirstMatching(planets, equalsImgUrl, imgToMatch);
-}
-
-function equalsColor(planet, colorToMatch) {
-     return ((planet.color[0] == colorToMatch[0]) &&
-             (planet.color[1] == colorToMatch[1]) &&
-             (planet.color[2] == colorToMatch[2]) &&
-             (planet.color[3] == colorToMatch[3]) );
-}
-
-function getFirstMatching(collection, matcher, toMatch ) {
-  for (var i = 0; i < collection.length; i++) {
-     if (matcher(collection[i], toMatch)) {
-       return collection[i];
-     }
-  }
+  return getFirstMatching(planets, Planet.prototype.equalsImageUrl, imgToMatch);
 }
 
 function getPlanetFromColor(colorToMatch) {
-   return getFirstMatching(planets, equalsColor, colorToMatch);
-}
-
-function relMouseCoords(e){
-   var x;
-   var y;
-   if (e.pageX || e.pageY) { 
-     x = e.pageX;
-     y = e.pageY;
-   }
-   else { 
-     x = e.clientX + document.body.scrollLeft + document.documentElement.scrollLeft; 
-     y = e.clientY + document.body.scrollTop + document.documentElement.scrollTop; 
-   } 
-    
-   x -= e.toElement.offsetLeft;
-   y -= e.toElement.offsetTop;
-   return {x:x, y:y};
-}
-
-function getColorFromCoords(coords, ctx) {
-   var pixelValues = new Uint8Array(4);
-   ctx.readPixels(coords.x, coords.y, 1,1, ctx.RGBA, ctx.UNSIGNED_BYTE, pixelValues)
-   return pixelValues;
+   return getFirstMatching(planets, Planet.prototype.equalsColor, colorToMatch);
 }
 
 function handleClick(e) {
@@ -852,10 +376,10 @@ function handleClick(e) {
    var col = getColorFromCoords(coords, dummy.gl);
    var planet = getPlanetFromColor(col);
    console.log('from ' + col[0] + ',' + col[1] + ',' + col[2] + ',' + col[3] + ' got ' + (planet ? planet.title : '')); 
-
    var toShow = planet ? planet.title : 'the VOID....';
 
-   stopSpinning = false;
+   // TODO this is sucky - change it - see def in planets.js
+   Planet.prototype.stopSpinning = false;
    document.getElementById('whoo').innerText = 'i am embarassingly happy that you clicked on ' +  toShow;
 
    for (var i in planets) {
@@ -875,73 +399,12 @@ function handleClick(e) {
    } 
 }
 
-var pitch = 0;
-var pitchRate = 0;
-var yaw = 0;
-var yawRate = 0;
-
-var xPos = 0;
-var yPos = 0.4;
-var zPos = 0;
-
-var speed = 0;
-
-// map keys to understandable names to remove comments
-
-// pitch is up/down
-function handleKeys() {
-  if (currentlyPressedKeys[49]) {
-    // 1
-    pitchRate = 0.001;
-  } else if (currentlyPressedKeys[50]) {
-    //2
-    pitchRate = -0.001;
-  } else {
-    pitchRate = 0;
-  }
-
-  // yaw is left/right
-  if (currentlyPressedKeys[37] || currentlyPressedKeys[65]) {
-    // Left cursor key or A
-    yawRate = 0.001;
-  } else if (currentlyPressedKeys[39] || currentlyPressedKeys[68]) {
-    // Right cursor key or D
-    yawRate = -0.001;
-  } else {
-    yawRate = 0;
-  }
-
-  // speed is up/down
-  if (currentlyPressedKeys[38] || currentlyPressedKeys[87]) {
-    // Up cursor key or W
-    speed = 0.003;
-  } else if (currentlyPressedKeys[40] || currentlyPressedKeys[83]) {
-    // Down cursor key
-    speed = -0.003;
-  } else {
-    speed = 0;
-  }
-}
-
-document.onkeydown = handleKeyDown;
-document.onkeyup = handleKeyUp;
-
-currentlyPressedKeys = {};
-function handleKeyDown() {
-   currentlyPressedKeys[event.keyCode] = 1;
-   console.log('pressed' + event.keyCode);
-   console.log('whu yaw = ' + yaw + ' yawRate = ' + yawRate);
-};
-
-function handleKeyUp() {
-   currentlyPressedKeys[event.keyCode] = 0;
-};
-
 </script>
 
 <style>
    #vixgl {
-     background-image: url('http://www.ilovemydesktop.com/data/media/14/Nebula_Space.jpg');
+     /*background-image: url('http://www.ilovemydesktop.com/data/media/14/Nebula_Space.jpg');*/
+     background-color: black;
    }
 
    #dummygl {
@@ -950,6 +413,8 @@ function handleKeyUp() {
 </style>
 
 </head>
+
+// TODO oh fucking hell use a proper loader
 <body onload="doStuff()">
   <canvas id="vixgl" width="1600" height="400" >
   </canvas>

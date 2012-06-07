@@ -52,8 +52,11 @@ Planet.prototype.draw = function(ctx) {
 };
 
 
+// this smells
+// because stopSpinning is a feature of the viz/solar system, rather than of the planets
+// therefore it should be moved out of here into one of those
+// we also need to move quite a lot of this logic out of the planet .. not sure where to draw the line with the vid stuff though
 Planet.prototype.stopSpinning = false;
-
 Planet.prototype.animate = function(elapsed) {
    if (!this.stopSpinning) {
       var stopRotatingWhenViddingAndInCenter = (this.vidding && (this.rTri >= 1.73*Math.PI && this.rTri <= 1.77*Math.PI));
