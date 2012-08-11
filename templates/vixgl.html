@@ -1,11 +1,13 @@
 <html>
 <head>
-<script src="static/scripts/glMatrix-0.9.5.min.js"></script>
-<script type="text/javascript" src="static/scripts/webgl-utils.js"></script>
+<script type="text/javascript" src="static/scripts/ext/glMatrix-0.9.5.min.js"></script>
+<script type="text/javascript" src="static/scripts/ext/webgl-utils.js"></script>
+
+<script type="text/javascript" src="static/scripts/utils.js"></script>
 <script type="text/javascript" src="static/scripts/planet.js"></script>
 <script type="text/javascript" src="static/scripts/camera.js"></script>
 <script type="text/javascript" src="static/scripts/vixgl.js"></script>
-<script type="text/javascript" src="static/scripts/utils.js"></script>
+
 <script id="fragmentShader" type="x-shader/x-fragment">
     precision mediump float;
 
@@ -49,7 +51,6 @@
     }
 </script>
 
-
 <script id="dummyFragmentShader" type="x-shader/x-fragment">
     precision mediump float;
 
@@ -74,76 +75,72 @@
 </script>
 
 <script>
-    var dummy = new glCtx('dummygl', 'dummyFragmentShader', 'dummyVertexShader');
-    var proper = new glCtx('vixgl', 'fragmentShader', 'vertexShader');
+    /*global vec3:false, glCtx:false, requestAnimFrame:false */
+    // TODO oh fucking hell use a proper loader
 
-    dummy.initTextures = function()  {
+    // could have an overarching webgl object
+    // that has multiple contexts
+    // which then can encapsulate webgl calls
+    // TODO try to do this with mixins rather than subclassing
+    // could even mix in the picker (dummy gl ctx) properly as its just another feature :D
+
+    var vixgl = vixgl || {};
+
+    vixgl.dummy = new glCtx('dummygl', 'dummyFragmentShader', 'dummyVertexShader');
+    vixgl.proper = new glCtx('vixgl', 'fragmentShader', 'vertexShader');
+
+    vixgl.dummy.initTextures = function()  {
+       "use strict";
     };
 
-   var drawStuff = function(vvc) {
-       initWorldObjects(vvc);
+    vixgl.drawStuff = function(vvc) {
+       "use strict";
 
-       dummy.drawStuff();
-       proper.drawStuff(); 
+       vixgl.initWorldObjects(vvc);
 
-       tick();
+       vixgl.dummy.drawStuff();
+       vixgl.proper.drawStuff(); 
+
+       vixgl.tick();
     };
+    
+    vixgl.lastTime = 0;  // TODO don't global me (bro)
+    vixgl.animate = function() {
+       "use strict";
 
-    var lastTime = 0;
-    var animate = function() {
        var timeNow = new Date().getTime();
 
-       if (lastTime != 0){
-          var elapsed = timeNow - lastTime;
-          for (var i in planets) {
-             planets[i].animate(elapsed); 
+       if (this.lastTime !== 0){
+          var elapsed = timeNow - this.lastTime;
+          for (var i in this.planets) {
+             if (this.planets.hasOwnProperty(i)) {
+                this.planets[i].animate(elapsed); 
+             }
           }
 
           // TODO aiee gonna have to use mixins for this to avoid dependency....
-          updateViewingAngle(elapsed);
+          vixgl.camera.updateViewingAngle(elapsed);
        }
 
-       lastTime = timeNow;
+       this.lastTime = timeNow;
     };
 
     // ask the browser to call us again, next time stuff needs to be animated
     // i.e. when we're in focus and the screen needs repainting
     // then draw the scene, and set it up for next time (move things) 
-    var tick = function() {
-         requestAnimFrame(tick);
-         handleKeys(); 
-         proper.drawScene();
-         dummy.drawScene();
-         animate(); 
-    }
+    vixgl.tick = function() {
+         "use strict";
 
-    // internal func
-    var getShader = function(ctx, shaderName) {
-       var shaderScript = document.getElementById(shaderName);
-         var str = '';
-         for (var k = shaderScript.firstChild; k; k = k.nextSibling) {
-            if (k.nodeType == 3) {
-               str += k.textContent;
-            }   
-         }
-
-         var shaderMap = {};
-         shaderMap['x-shader/x-fragment'] = ctx.FRAGMENT_SHADER;
-         shaderMap['x-shader/x-vertex']   = ctx.VERTEX_SHADER;
-         
-         var shader = ctx.createShader(shaderMap[shaderScript.type]);
-         console.dir(shader);
-         ctx.shaderSource(shader, str);
-         ctx.compileShader(shader);
-
-         if (!ctx.getShaderParameter(shader, ctx.COMPILE_STATUS)){
-                 console.log(ctx.getShaderInfoLog(shader));
-         } 
-
-         return shader;
+         requestAnimFrame(vixgl.tick);
+         vixgl.camera.handleKeys(); 
+         vixgl.proper.drawScene();
+         vixgl.dummy.drawScene();
+         vixgl.animate(); 
     };
 
-    proper.initUniforms = function() {
+    vixgl.proper.initUniforms = function() {
+       "use strict";
+
        var shaderProgram = this.shaderProgram;
        var gl = this.gl;
        shaderProgram.mvMatrixUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
@@ -155,9 +152,11 @@
        shaderProgram.ambientColorUniform = gl.getUniformLocation(shaderProgram, 'uAmbientColor');
        shaderProgram.lightingDirectionUniform = gl.getUniformLocation(shaderProgram, 'uLightingDirection');
        shaderProgram.directionalColorUniform = gl.getUniformLocation(shaderProgram, 'uDirectionalColor');
-    }
+    };
 
-    proper.initAttributes = function() {
+    vixgl.proper.initAttributes = function() {
+       "use strict";
+
        var prog = this.shaderProgram;
        var gl = this.gl;
        prog.vertexPositionAttribute = gl.getAttribLocation(prog, 'aVertexPosition');
@@ -168,9 +167,11 @@
 
        prog.textureCoordAttribute = gl.getAttribLocation(prog, 'aTextureCoord');
        gl.enableVertexAttribArray(prog.textureCoordAttribute);
-    }
+    };
 
-       proper.initProgVars = function(planet){
+    vixgl.proper.initProgVars = function(planet){
+         "use strict";
+
          var gl = this.gl;
          var vertices = this.vertices;
          var prog = this.shaderProgram;
@@ -204,7 +205,9 @@
          gl.uniform3fv(prog.greyingFactor, planet.getGreyingFactor()); 
        };
 
-    dummy.initUniforms = function() {
+    vixgl.dummy.initUniforms = function() {
+       "use strict";
+
        var prog = this.shaderProgram;
        var gl = this.gl;
 
@@ -212,17 +215,21 @@
        prog.pMatrixUniform = gl.getUniformLocation(prog, 'uPMatrix');
        prog.scale = gl.getUniformLocation(prog, 'uScale');
        prog.color = gl.getUniformLocation(prog, 'uColor');
-  }
+  };
 
-    dummy.initAttributes = function() {
+    vixgl.dummy.initAttributes = function() { 
+       "use strict";
+
        var prog = this.shaderProgram;
        var gl = this.gl;
 
        prog.vertexPositionAttribute = gl.getAttribLocation(prog, 'aVertexPosition');
        gl.enableVertexAttribArray(prog.vertexPositionAttribute);
-    }
+    };
 
-    dummy.initProgVars = function(planet){
+    vixgl.dummy.initProgVars = function(planet){
+         "use strict";
+
          var r = planet.color[0] / 255;
          var g = planet.color[1] / 255;
          var b = planet.color[2] / 255;
@@ -230,40 +237,49 @@
          this.gl.uniform4fv( this.shaderProgram.color, [r,g,b,a]);
    };
 
-    var getSunImageUrl = function() {
-       if (isOffline() ){
+    vixgl.getSunImageUrl = function() {
+       "use strict";
+
+       if (vixgl.isOffline() ){
          return 'http://0.0.0.0:5000/static/happy_melon.gif';
        } else {
          return 'http://www.mathematik.uni-marburg.de/~menzel/images/Tutorial_Sun/SunTexture_2048.png';
        }
     };
 
-    var getPlanetTextureUrl = function(videoRef) {
-       if (isOffline() ){
+    vixgl.getPlanetTextureUrl = function(videoRef) {
+       "use strict";
+
+       if (vixgl.isOffline() ){
             return 'http://0.0.0.0:5000/static/happy_melon.gif?foo=' + videoRef;
        } else {
             return 'http://streaming.vikkiread.co.uk.s3.amazonaws.com/' + videoRef + '.jpg';
        }
     };
 
-    function initWorldObjects(vvc) {
-        var planet = new Planet(0.1, 0, [0,0,0], getSunImageUrl(), 0.5, [255,255,0,OPAQUE], 'the SUN', null);
-        planets.push(planet);
+    vixgl.initWorldObjects = function(vvc) {
+       "use strict";
 
-        var maxShareCount = 0;
-        var totalShareCount = 0;
-        for (var i = 0; i < 10; i++) {
+        var i = 0,
+            maxShareCount = 0,
+            totalShareCount = 0,
+            allowForSun = 0,
+            maxDistFromSun = 25,
+            outSoFar = allowForSun,
+            planet;
+   
+        planet = new vixgl.Planet(0.1, 0, [0,0,0], vixgl.getSunImageUrl(), 0.5, [255,255,0,255], 'the SUN', null);
+        this.planets.push(planet);
+
+        for (; i < 10; i++) {
            if (vvc.entries[i].shares > maxShareCount){
               maxShareCount = vvc.entries[i].shares;
            }
            totalShareCount += vvc.entries[i].shares;
         }
 
-        var allowForSun = 0;
-        var maxDistFromSun = 25;
-
-        var outSoFar = allowForSun;
-        for (var i = 0; i < 10; i++) {
+        // TODO these aren't block scoped - move the def up so it doesn't look like they are
+        for (i = 0; i < 10; i++) {
             var entry = vvc.entries[i];
 
             var sharePerc = entry.shares / totalShareCount;
@@ -278,60 +294,69 @@
 
             var scale = sharePerc + 1.5;
 
-            var randColor = [randPrimaryColor(), randPrimaryColor(), randPrimaryColor(), OPAQUE];
+            // TODO move to util?
+            var randColor = [vixgl.util.randPrimaryColor(), vixgl.util.randPrimaryColor(), vixgl.util.randPrimaryColor(), 255];
 
-            var planet = new Planet(rTri, startingAngle, distFromCentre, getPlanetTextureUrl(entry.videoRef), scale, randColor, entry.title, entry.hostingSiteUrl, entry.videoRef);
-            planets.push(planet);
+            planet = new vixgl.Planet(rTri, startingAngle, distFromCentre, vixgl.getPlanetTextureUrl(entry.videoRef), scale, randColor, entry.title, entry.hostingSiteUrl, entry.videoRef);
+            this.planets.push(planet);
         }   
-    }
+    };
 
 // could probs do this with a shiny js api?? the offline api perhaps :P TODO
-var isOffline = function() {
+// and just fallback to the offline hash thing
+vixgl.isOffline = function() {
+    "use strict";
+
     return document.location.hash === '#offline';
 };
 
-var matchVideo = function(fromUrl) {
-  if (isOffline()) {
+vixgl.matchVideo = function(fromUrl) {
+  "use strict";
+
+  if (vixgl.isOffline()) {
      return fromUrl;
   } else {
+     // TODO - wat?! FIXME!
      return fromUrl;
-     var realUrlMatch =   fromUrl.match(/kitty\?img=([^&]*)&?/);
+     /*var realUrlMatch =   fromUrl.match(/kitty\?img=([^&]*)&?/);
      if(realUrlMatch && realUrlMatch.length > 0) {
         realUrl = realUrlMatch[1];
-     }
+     }*/
   }
 };
 
-var getVideoLocation = function(videoRef) {
-  return isOffline() ? videoRef :  ' /kitty?img=' + videoRef;
-} ;
+vixgl.getVideoLocation = function(videoRef) {
+  "use strict";
 
-var planets = [];
+  return this.isOffline() ? videoRef :  ' /kitty?img=' + videoRef;
+};
 
-function drawVid(videoRef) {
+// TODO this should probs go in a constructor, no? 
+vixgl.planets = [];
+
+vixgl.drawVid = function(videoRef) {
+       "use strict";
+
        var vid = document.createElement('video');
        vid.id = 'video' + videoRef;
-       // TODO unhorrible - use css
        vid.style.display = 'none';
        vid.height = '256'; 
        vid.width  = '256'; 
        vid.className = 'vidTexture';
-       //vid.src = '/yt_vid?vid=' + videoRef;
        vid.src = '/vid?vid=http://streaming.vikkiread.co.uk.s3.amazonaws.com/' + videoRef + '.mp4';
        document.body.appendChild(vid);
        return vid;
-}
+};
 
-function drawVidEmbed(videoRef) {
-   var embed = createYTEmbed(videoRef);
-}
 
-function removeOldVidEmbeds(current) {
+vixgl.removeOldVidEmbeds = function(current) {
+   "use strict";
+
    // call stop  + remove old video elements - hopefully this prevents mem leakages? 
    var vidTextures = document.querySelectorAll('.vidTexture');
    for (var i = 0; i < vidTextures.length; i++) {
       var vid = vidTextures[i];
-      if (vid == current)  {
+      if (vid === current)  {
          continue;
       }
       vid.pause();
@@ -341,63 +366,87 @@ function removeOldVidEmbeds(current) {
       vid.load();
       vid.parentElement.removeChild(vid);
    }
-}
+};
 
-var getJsonUrl = function() {
-    if (isOffline() ) {
+vixgl.getJsonUrl = function() {
+    "use strict";
+
+    if (vixgl.isOffline() ) {
        return "/static/fake.json";
     } else {
        return "/html?html=http://streaming.vikkiread.co.uk.s3.amazonaws.com/current_vvc.json";
     }
 };
 
-function setupChartViz(oReq) {
+vixgl.setupChartViz = function(oReq) {
+  "use strict";
+
    var vvc = JSON.parse(oReq.responseText);
    console.dir(vvc);
-   drawStuff(vvc);
-}
+   vixgl.drawStuff(vvc);
+};
 
-function doStuff() {
-   doAjaxRequest(getJsonUrl(), setupChartViz);
+vixgl.doStuff = function() {
+   "use strict";
+
+   vixgl.util.doAjaxRequest(vixgl.getJsonUrl(), vixgl.setupChartViz);
    // x-browser fail!!! TODO fixme
-   document.getElementById('vixgl').addEventListener('click', handleClick, false);
-}
+   document.getElementById('vixgl').addEventListener('click', vixgl.doStuffWithPlanet, false);
+};
 
-function getNewPlanetFromImageUrl(imgToMatch) {
-  return getFirstMatching(planets, Planet.prototype.equalsImageUrl, imgToMatch);
-}
+vixgl.getNewPlanetFromImageUrl = function(imgToMatch) {
+  "use strict";
 
-function getPlanetFromColor(colorToMatch) {
-   return getFirstMatching(planets, Planet.prototype.equalsColor, colorToMatch);
-}
+  var matcher = vixgl.Planet.prototype.equalsImageUrl;
+  if (!vixgl.isOffline()) {
+     var imgParam = vixgl.util.getQueryStringParam(imgToMatch, 'img');
+     if (imgParam) {
+        imgToMatch = imgParam;
+     }
+  }  
 
-function handleClick(e) {
-   var coords = relMouseCoords(event);
-   var col = getColorFromCoords(coords, dummy.gl);
-   var planet = getPlanetFromColor(col);
+  return vixgl.util.getFirstMatching(this.planets, matcher, imgToMatch);
+};
+
+vixgl.getPlanetFromColor = function(colorToMatch) {
+   "use strict";
+
+   return vixgl.util.getFirstMatching(this.planets, vixgl.Planet.prototype.equalsColor, colorToMatch);
+};
+
+// TODO - this shouldn't be called handleClick
+// put it on vixgl and hook it up better
+vixgl.doStuffWithPlanet = function() {
+   "use strict";
+
+   var coords = vixgl.util.relMouseCoords(event);
+   var col = vixgl.util.getColorFromCoords(coords, vixgl.dummy.gl);
+   var planet = vixgl.getPlanetFromColor(col);
    console.log('from ' + col[0] + ',' + col[1] + ',' + col[2] + ',' + col[3] + ' got ' + (planet ? planet.title : '')); 
    var toShow = planet ? planet.title : 'the VOID....';
 
    // TODO this is sucky - change it - see def in planets.js
-   Planet.prototype.stopSpinning = false;
+   vixgl.Planet.prototype.stopSpinning = false;
    document.getElementById('whoo').innerText = 'i am embarassingly happy that you clicked on ' +  toShow;
 
-   for (var i in planets) {
-      planets[i].vidding = false;
-      planets[i].greyed = (typeof planet != 'undefined'); 
-
-      proper.updateTextureWith(planets[i].origTex, planets[i].texture);
+   for (var i in this.planets) {
+      if (this.planets.hasOwnProperty(i)) {
+         this.planets[i].vidding = false;
+         this.planets[i].greyed = (typeof planet !== 'undefined'); 
+         this.proper.updateTextureWith(this.planets[i].origTex, this.planets[i].texture);
+       }
    } 
 
-   removeOldVidEmbeds(vid); 
+   vixgl.removeOldVidEmbeds(vid); 
 
    if (planet) {
+      // TODO wat?
       var vid = document.getElementById('video' + planet.videoRef);
-      var vid = drawVid(planet.videoRef);
+      vid = vixgl.drawVid(planet.videoRef);
       planet.vidding = true;
       planet.greyed = false;
    } 
-}
+};
 
 </script>
 
@@ -414,8 +463,7 @@ function handleClick(e) {
 
 </head>
 
-// TODO oh fucking hell use a proper loader
-<body onload="doStuff()">
+<body onload="vixgl.doStuff()">
   <canvas id="vixgl" width="1600" height="400" >
   </canvas>
   <canvas id="dummygl" width="1600" height="400" >

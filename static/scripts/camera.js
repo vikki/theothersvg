@@ -1,17 +1,23 @@
-// TODO rewrite this so there aren't so many fricking globals!!
-var pitch = 0;
-var pitchRate = 0;
-var yaw = 0;
-var yawRate = 0;
+/*global mat4: true */
 
-var xPos = 0;
-var yPos = 0.4;
-var zPos = 0;
+var vixgl = vixgl || {};
 
-var speed = 0;
-var currentlyPressedKeys = {}; 
+vixgl.Camera = function() {
+   "use strict";
 
-// map keys to understandable names to remove comments
+   this.pitch = 0;
+   this.pitchRate = 0;
+   this.yaw = 0;
+   this.yawRate = 0;
+   
+   this.xPos = 0;
+   this.yPos = 0.4;
+   this.zPos = 0;
+   
+   this.speed = 0;
+};
+
+vixgl.camera = vixgl.camera || new vixgl.Camera();
 
 var KEYS = {
    ONE: 49,
@@ -26,55 +32,66 @@ var KEYS = {
    S: 83
 };
 
-// pitch is up/down
-var handleKeys = function() {
-  if (currentlyPressedKeys[KEYS.ONE]) {
-    pitchRate = 0.001;
-  } else if (currentlyPressedKeys[KEYS.TWO]) {
-    pitchRate = -0.001;
-  } else {
-    pitchRate = 0;
-  }
 
-  // yaw is left/right
-  if (currentlyPressedKeys[KEYS.LEFT] || currentlyPressedKeys[KEYS.A]) {
-    yawRate = 0.001;
-  } else if (currentlyPressedKeys[KEYS.RIGHT] || currentlyPressedKeys[KEYS.D]) {
-    yawRate = -0.001;
-  } else {
-    yawRate = 0;
-  }
+// TODO
+// could potentially do this more elegantly with a mapping of deltas....
+// so you'd have an object or maybe assoc 2d array like : 
+// [key : [pitchRateDelta, yawRateDelta, speedDelta]] 
+// and maybe you can iterate over the array 
+// get a delta
+// and apply it to the pitchRate, yawRate, and speed
+// or something
 
-  // speed is up/down
-  if (currentlyPressedKeys[KEYS.UP] || currentlyPressedKeys[KEYS.W]) {
-    speed = 0.003;
-  } else if (currentlyPressedKeys[KEYS.DOWN] || currentlyPressedKeys[KEYS.S]) {
-    speed = -0.003;
-  } else {
-    speed = 0;
-  }
+// TODO also could move the keys stuff into util, or else make it even simpler
+vixgl.camera.handleKeys = function () {
+   "use strict";
+
+   // pitch is up/down
+   if (vixgl.util.anyPressed([KEYS.ONE])) {
+      this.pitchRate = 0.001;
+   } else if (vixgl.util.anyPressed([KEYS.TWO])) {
+      this.pitchRate = -0.001;
+   } else {
+      this.pitchRate = 0;
+   }
+
+   // yaw is left/right
+   if (vixgl.util.anyPressed([KEYS.LEFT, KEYS.A])) {
+      this.yawRate = 0.001;
+   } else if (vixgl.util.anyPressed([KEYS.RIGHT, KEYS.D])) {
+      this.yawRate = -0.001;
+   } else {
+      this.yawRate = 0;
+   }
+
+   // speed is up/down
+   if (vixgl.util.anyPressed([KEYS.UP, KEYS.W])) {
+      this.speed = 0.003;
+   } else if (vixgl.util.anyPressed([KEYS.DOWN, KEYS.S])) {
+      this.speed = -0.003;
+   } else {
+      this.speed = 0;
+   }
 };
 
-document.onkeydown = handleKeyDown;
-document.onkeyup = handleKeyUp;
+vixgl.camera.updateViewingAngle = function (elapsed) {
+   "use strict";
 
-function handleKeyDown(event) {
-   currentlyPressedKeys[event.keyCode] = 1;
-}
+   var joggingAngle = 0.0005;
+   if (this.speed !== 0) {
+      this.xPos -= Math.sin(this.yaw) * this.speed * elapsed;
+      this.zPos -= Math.cos(this.yaw) * this.speed * elapsed;
 
-function handleKeyUp(event) {
-   currentlyPressedKeys[event.keyCode] = null;
-}
+      joggingAngle += elapsed * 0.6; // 0.6 "fiddle factor" -- makes it feel more realistic :-)
+   }
+   this.yaw   += this.yawRate * elapsed;
+   this.pitch += this.pitchRate * elapsed;
+};
 
-    var updateViewingAngle = function(elapsed) {
-       var joggingAngle = 0.0005;
-       if (speed != 0) {
-         xPos -= Math.sin(yaw) * speed * elapsed;
-         zPos -= Math.cos(yaw) * speed * elapsed;
+vixgl.camera.updateSceneForCamera = function(ctx) {
+   "use strict";
 
-         joggingAngle += elapsed * 0.6;  // 0.6 "fiddle factor" -- makes it feel more realistic :-)
-       }
-       yaw += yawRate * elapsed;
-       pitch += pitchRate * elapsed;
-    };
-
+   mat4.rotate(ctx.mvMatrix, - this.pitch, [1, 0, 0]);
+   mat4.rotate(ctx.mvMatrix, - this.yaw, [0, 1, 0]);
+   mat4.translate(ctx.mvMatrix, [-this.xPos, -this.yPos, -this.zPos]);
+};
