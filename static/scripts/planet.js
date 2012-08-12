@@ -1,8 +1,9 @@
 // kinda feels like the GL stuff should be separate from the app stuff
 // so maybe planet should inherit from circle??
 
+var vixgl = vixgl || {};
 // TODO add the i-forgot-new fix from stoyan, cos you're a dumbass and you will forget new :P
-vixgl.Planet = function(rTri, startingAngle, distFromCentre, imageUrl, scale, color, title, video, videoRef) {
+vixgl.Planet = vixgl.Planet || function(rTri, startingAngle, distFromCentre, imageUrl, scale, color, title, video, videoRef) {
    this.startingAngle = startingAngle;
    this.distFromCentre = distFromCentre;
    this.origImageUrl = imageUrl;
