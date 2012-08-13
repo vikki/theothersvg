@@ -39,17 +39,18 @@ glCtx.prototype.initGL = function () {
 glCtx.prototype.initShaders = function () {
    "use strict";
 
-   var fragmentShader = this.getShader(this.gl, this.fragmentShaderId);
-   var vertexShader = this.getShader(this.gl, this.vertexShaderId);
+   var fragmentShader = this.getShader(this.gl, this.fragmentShaderId),
+       vertexShader = this.getShader(this.gl, this.vertexShaderId),
+       shaderStatus;
 
    this.shaderProgram = this.gl.createProgram();
    this.gl.attachShader(this.shaderProgram, vertexShader);
    this.gl.attachShader(this.shaderProgram, fragmentShader);
    this.gl.linkProgram(this.shaderProgram);
 
-   var foo = this.gl.getProgramParameter(this.shaderProgram, this.gl.LINK_STATUS);
-   if (!foo) {
-      console.log('webgl didnae work' + foo);
+   shaderStatus = this.gl.getProgramParameter(this.shaderProgram, this.gl.LINK_STATUS);
+   if (!shaderStatus) {
+      console.log('webgl didnae work' + shaderStatus);
    } else {
       console.log('program is shiny');
    }
@@ -64,8 +65,8 @@ glCtx.prototype.initShaders = function () {
 glCtx.prototype.setupBuffer = function (contents, itemSize, buffer) {
    "use strict";
 
-   var gl = this.gl;
-   var newBuffer = gl.createBuffer();
+   var gl = this.gl,
+       newBuffer = gl.createBuffer();
    newBuffer.itemSize = itemSize;
    newBuffer.numItems = contents.length / itemSize;
    gl.bindBuffer(buffer, newBuffer);
@@ -75,19 +76,16 @@ glCtx.prototype.setupBuffer = function (contents, itemSize, buffer) {
 glCtx.prototype.setupFloat32Buffer = function (contents, itemSize, buffer) {
    "use strict";
 
-   var gl = this.gl;
-
    var newBuffer = this.setupBuffer(contents, itemSize, buffer);
-   gl.bufferData(buffer, new Float32Array(contents), gl.STATIC_DRAW);
+   this.gl.bufferData(buffer, new Float32Array(contents), this.gl.STATIC_DRAW);
    return newBuffer;
 };
 
 glCtx.prototype.setupUint16Buffer = function (contents, itemSize, buffer) {
    "use strict";
 
-   var gl = this.gl;
    var newBuffer = this.setupBuffer(contents, itemSize, buffer);
-   gl.bufferData(buffer, new Uint16Array(contents), gl.STATIC_DRAW);
+   this.gl.bufferData(buffer, new Uint16Array(contents), this.gl.STATIC_DRAW);
    return newBuffer;
 };
 
@@ -112,7 +110,12 @@ glCtx.prototype.initBuffers = function () {
        y = 0,
        z = 0,
        u = 0,
-       v = 0;
+       v = 0,
+       indexData = [],
+       topLeft,
+       bottomLeft,
+       topRight,
+       bottomRight;
 
    this.vertices = {};
 
@@ -150,13 +153,12 @@ glCtx.prototype.initBuffers = function () {
    this.vertices.textureCoordBuffer = this.setupFloat32Buffer(textureCoordData, 2, this.gl.ARRAY_BUFFER);
    this.vertices.positionBuffer = this.setupFloat32Buffer(vertexPositionData, 3, this.gl.ARRAY_BUFFER);
 
-   var indexData = [];
    for (latNumber = 0; latNumber < latitudeBands; latNumber++) {
       for (longNumber = 0; longNumber < longitudeBands; longNumber++) {
-         var topLeft = (latNumber * (longitudeBands + 1)) + longNumber;
-         var bottomLeft = topLeft + longitudeBands + 1;
-         var topRight = topLeft + 1;
-         var bottomRight = bottomLeft + 1;
+         topLeft = (latNumber * (longitudeBands + 1)) + longNumber;
+         bottomLeft = topLeft + longitudeBands + 1;
+         topRight = topLeft + 1;
+         bottomRight = bottomLeft + 1;
 
          indexData.push(topLeft);
          indexData.push(bottomLeft);
@@ -174,10 +176,12 @@ glCtx.prototype.initBuffers = function () {
 // TODO dep on planets - shouldn't be in here
 glCtx.prototype.initTextures = function () {
    "use strict";
+   
+   var prop;
 
-   for (var i in vixgl.planets) {
-      if (vixgl.planets.hasOwnProperty(i)) {
-         vixgl.planets[i].origTex = this.initTexture(vixgl.planets[i].imageUrl);
+   for (prop in vixgl.planets) {
+      if (vixgl.planets.hasOwnProperty(prop)) {
+         vixgl.planets[prop].origTex = this.initTexture(vixgl.planets[prop].imageUrl);
       }
    }
 };
@@ -185,12 +189,13 @@ glCtx.prototype.initTextures = function () {
 glCtx.prototype.initTexture = function (vid) {
    "use strict";
 
-   var foo = new Image();
-   var ctx = this;
+   var foo = new Image(),
+       ctx = this;
+
    foo.onload = function () {
-      var realUrl = vixgl.matchVideo(this.src);
-      var planet = vixgl.getNewPlanetFromImageUrl(realUrl);
-      var texture = ctx.createTextureFromImage(this);
+      var realUrl = vixgl.matchVideo(this.src),
+          planet = vixgl.getNewPlanetFromImageUrl(realUrl),
+          texture = ctx.createTextureFromImage(this);
       planet.texture = texture;
    };
    foo.src = vixgl.getVideoLocation(vid);
@@ -201,6 +206,7 @@ glCtx.prototype.makeTextureFrom = function (image) {
    "use strict";
 
    var texture = this.gl.createTexture();
+
    this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
    this.gl.pixelStorei(this.gl.UNPACK_FLIP_Y_WEBGL, true);
    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, image);
@@ -258,12 +264,6 @@ glCtx.prototype.makeImageSuitableForTexture = function (image) {
       centerY = canvas.height / 2 - height / 2;
       ctx.drawImage(image, centerX, centerY, width, height);
 
-      // TODO figure out middle properly, and size of text etc.)
-      ctx.moveTo(50, 50);
-      ctx.fillStyle = 'Red';
-      ctx.font = '30px sans-serif';
-      //ctx.fillText("fill", 60, 60);
-
       image = canvas;
    }
 
@@ -289,10 +289,11 @@ glCtx.prototype.updateTextureWith = function (image, texture) {
 glCtx.prototype.setMatrixUniforms = function () {
    "use strict";
 
+   var normalMatrix = mat3.create();
+
    this.gl.uniformMatrix4fv(this.shaderProgram.pMatrixUniform, false, this.pMatrix);
    this.gl.uniformMatrix4fv(this.shaderProgram.mvMatrixUniform, false, this.mvMatrix);
 
-   var normalMatrix = mat3.create();
    mat4.toInverseMat3(this.mvMatrix, normalMatrix);
    mat3.transpose(normalMatrix);
    this.gl.uniformMatrix3fv(this.shaderProgram.nMatrixUniform, false, normalMatrix);
@@ -321,6 +322,9 @@ glCtx.prototype.drawScene = function () {
    "use strict";
    /*jshint bitwise: false */
 
+   var prop,
+       planet;
+
    this.gl.viewport(0, 0, this.viewportWidth, this.viewportHeight);
    this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
    mat4.perspective(45, this.viewportWidth / this.viewportHeight, 0.1, 100.0, this.pMatrix);
@@ -331,11 +335,11 @@ glCtx.prototype.drawScene = function () {
    vixgl.camera.updateSceneForCamera(this);
 
    // TODO dep on planets - shouldn't be in here
-   for (var i in vixgl.planets) {
-      if (vixgl.planets.hasOwnProperty(i)) {
+   for (prop in vixgl.planets) {
+      if (vixgl.planets.hasOwnProperty(prop)) {
          this.mvPushMatrix();
    
-         var planet = vixgl.planets[i];
+         planet = vixgl.planets[prop];
          mat4.rotate(this.mvMatrix, planet.rTri, [0, 1, 0]);
          mat4.translate(this.mvMatrix, planet.distFromCentre);
          planet.draw(this);
@@ -350,15 +354,17 @@ glCtx.prototype.getShader = function(ctx, shaderName) {
 
    // should do this with ajax
    // and store shaders in diff files
-   var shaderScript = document.getElementById(shaderName);
-   var str = '';
-   for (var k = shaderScript.firstChild; k; k = k.nextSibling) {
+   var shaderScript = document.getElementById(shaderName),
+       str = '',
+       shaderMap = {},
+       k = shaderScript.firstChild;
+
+   for (; k; k = k.nextSibling) {
       if (k.nodeType === 3) {
          str += k.textContent;
       }
    }   
     
-   var shaderMap = {};
    shaderMap['x-shader/x-fragment'] = ctx.FRAGMENT_SHADER;
    shaderMap['x-shader/x-vertex']   = ctx.VERTEX_SHADER;
   

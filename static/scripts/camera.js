@@ -32,7 +32,6 @@ var KEYS = {
    S: 83
 };
 
-
 // TODO
 // could potentially do this more elegantly with a mapping of deltas....
 // so you'd have an object or maybe assoc 2d array like : 
@@ -41,8 +40,7 @@ var KEYS = {
 // get a delta
 // and apply it to the pitchRate, yawRate, and speed
 // or something
-
-// TODO also could move the keys stuff into util, or else make it even simpler
+// ORRRR could move the keys stuff into util, or else make it even simpler
 vixgl.camera.handleKeys = function () {
    "use strict";
 

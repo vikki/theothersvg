@@ -124,6 +124,12 @@ vixgl.util.randPrimaryColor = function randPrimaryColor() {
    return Math.round(Math.random() * 255);
 };
 
+vixgl.util.randColor = function randColor() {
+   "use strict";
+
+   return [vixgl.util.randPrimaryColor(), vixgl.util.randPrimaryColor(), vixgl.util.randPrimaryColor(), 255];
+};
+
 vixgl.util.getQueryStringParams = function getQueryStringParams(url) {
    "use strict";
 

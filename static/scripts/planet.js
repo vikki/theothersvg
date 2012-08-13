@@ -3,24 +3,26 @@
 
 var vixgl = vixgl || {};
 // TODO add the i-forgot-new fix from stoyan, cos you're a dumbass and you will forget new :P
-vixgl.Planet = vixgl.Planet || function(rTri, startingAngle, distFromCentre, imageUrl, scale, color, title, video, videoRef) {
-   this.startingAngle = startingAngle;
-   this.distFromCentre = distFromCentre;
-   this.origImageUrl = imageUrl;
-   this.rotationAngleDuringWindow = rTri;
-   this.windowToRotate = 1000;
-   this.rTri = rTri;
-   this.origScale = scale;
-   this.color = color;
-   this.title = title;
-   this.video = video;
-   this.vidding = false;
-   this.videoRef = videoRef;
 
+// can you mix in the props with mixins?
+vixgl.Planet = vixgl.Planet || function(planetConfig) {
+   this.startingAngle = planetConfig.startingAngle;
+   this.distFromCentre = planetConfig.distFromCentre;
+   this.origImageUrl = planetConfig.imageUrl;
+   this.rotationAngleDuringWindow = planetConfig.rTri;
+   this.rTri = planetConfig.rTri;
+   this.origScale = planetConfig.scale;
+   this.color = planetConfig.color;
+   this.title = planetConfig.title;
+   this.video = planetConfig.video;
+   this.videoRef = planetConfig.videoRef;
+   this.scale = planetConfig.scale;
+   this.imageUrl = planetConfig.imageUrl;
+
+   this.windowToRotate = 1000;
+   this.vidding = false;
    this.greyed = false;
-   this.scale = scale;
-   this.imageUrl = imageUrl;
-}
+};
 
 vixgl.Planet.prototype.getGreyingFactor = function () {
    return this.greyed ? [0.3, 0.3, 0.3] : [1.0, 1.0, 1.0];
@@ -96,7 +98,7 @@ vixgl.Planet.prototype.animate = function (elapsed) {
 
    if (this.vidding && this.stopSpinning) {
       var vid = document.getElementById('video' + this.videoRef);
-      this.texture = proper.updateTextureWith(vid, this.texture);
+      this.texture = vixgl.proper.updateTextureWith(vid, this.texture);
    }
 };
 
