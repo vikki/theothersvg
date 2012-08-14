@@ -3,6 +3,8 @@
 <script type="text/javascript" src="static/scripts/ext/glMatrix-0.9.5.min.js"></script>
 <script type="text/javascript" src="static/scripts/ext/webgl-utils.js"></script>
 
+<script type="text/javascript" src="static/scripts/configUtils.js"></script>
+<script type="text/javascript" src="static/scripts/config.js"></script>
 <script type="text/javascript" src="static/scripts/utils.js"></script>
 <script type="text/javascript" src="static/scripts/planet.js"></script>
 <script type="text/javascript" src="static/scripts/camera.js"></script>
@@ -86,10 +88,19 @@
     // will still automatically need 2 ctxs, one for dummy, one for real
     // could maybe throw in observer pattern here?
 
-    var vixgl = vixgl || {};
+    // TODO not yet!!!
+    /*var vixgl = vixgl || {
+       lastTime: 0,
+       planets: [],
+       dummy: new glCtx('dummygl', 'dummyFragmentShader', 'dummyVertexShader'),
+       proper: new glCtx('vixgl', 'fragmentShader', 'vertexShader')
+    };*/
 
-    vixgl.dummy = new glCtx('dummygl', 'dummyFragmentShader', 'dummyVertexShader');
-    vixgl.proper = new glCtx('vixgl', 'fragmentShader', 'vertexShader');
+    var vixgl = vixgl || {};
+    vixgl.lastTime= 0;
+    vixgl.planets= [];
+    vixgl.dummy= new glCtx('dummygl', 'dummyFragmentShader', 'dummyVertexShader');
+    vixgl.proper= new glCtx('vixgl', 'fragmentShader', 'vertexShader');
 
     vixgl.dummy.initTextures = function()  {
        "use strict";
@@ -106,7 +117,6 @@
        vixgl.tick();
     };
     
-    vixgl.lastTime = 0;
     vixgl.animate = function() {
        "use strict";
 
@@ -146,6 +156,7 @@
 
        var shaderProgram = this.shaderProgram,
            gl = this.gl;
+
        shaderProgram.mvMatrixUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
        shaderProgram.pMatrixUniform = gl.getUniformLocation(shaderProgram, 'uPMatrix');
        shaderProgram.nMatrixUniform = gl.getUniformLocation(shaderProgram, 'uNMatrix');
@@ -238,21 +249,14 @@
     vixgl.getSunImageUrl = function() {
        "use strict";
 
-       if (vixgl.isOffline() ){
-         return 'http://0.0.0.0:5000/static/happy_melon.gif';
-       } else {
-         return 'http://www.mathematik.uni-marburg.de/~menzel/images/Tutorial_Sun/SunTexture_2048.png';
-       }
+       return vixgl.config.getConfig()['sunUrl'];
     };
 
     vixgl.getPlanetTextureUrl = function(videoRef) {
        "use strict";
 
-       if (vixgl.isOffline() ){
-            return 'http://0.0.0.0:5000/static/happy_melon.gif?foo=' + videoRef;
-       } else {
-            return 'http://streaming.vikkiread.co.uk.s3.amazonaws.com/' + videoRef + '.jpg';
-       }
+       var planetBaseUrl = vixgl.config.getConfig()['planetBaseUrl'];
+       return planetBaseUrl.replace('%s', videoRef);
     };
 
     vixgl.initWorldObjects = function(vvc) {
@@ -312,18 +316,10 @@
         }   
     };
 
-// could probs do this with a shiny js api?? the offline api perhaps :P TODO
-// and just fallback to the offline hash thing
-vixgl.isOffline = function() {
-    "use strict";
-
-    return document.location.hash === '#offline';
-};
-
 vixgl.matchVideo = function(fromUrl) {
   "use strict";
 
-  if (vixgl.isOffline()) {
+  if (vixgl.util.isOffline()) {
      return fromUrl;
   } else {
      // TODO - wat?! FIXME!
@@ -338,11 +334,9 @@ vixgl.matchVideo = function(fromUrl) {
 vixgl.getVideoLocation = function(videoRef) {
   "use strict";
 
-  return this.isOffline() ? videoRef :  ' /kitty?img=' + videoRef;
+  var videoLocationBase = vixgl.config.getConfig()['videoLocationBase'];
+  return videoLocationBase.replace('%s', videoRef);
 };
-
-// TODO this should probs go in a constructor, no? 
-vixgl.planets = [];
 
 // TODO this should handle if we've already drawn the video?
 // and get rid of old ones
@@ -384,15 +378,10 @@ vixgl.removeOldVidEmbeds = function(current) {
    }
 };
 
-// TODO pull URLS out of methods - js config file?
 vixgl.getJsonUrl = function() {
     "use strict";
 
-    if (vixgl.isOffline() ) {
-       return "/static/fake.json";
-    } else {
-       return "/html?html=http://streaming.vikkiread.co.uk.s3.amazonaws.com/current_vvc.json";
-    }
+    return vixgl.config.getConfig()['vvcJson'];
 };
 
 vixgl.setupChartViz = function(oReq) {
@@ -417,7 +406,7 @@ vixgl.getNewPlanetFromImageUrl = function(imgToMatch) {
   var matcher = vixgl.Planet.prototype.equalsImageUrl,
       imgParam;
 
-  if (!vixgl.isOffline()) {
+  if (!vixgl.util.isOffline()) {
      imgParam = vixgl.util.getQueryStringParam(imgToMatch, 'img');
      if (imgParam) {
         imgToMatch = imgParam;
@@ -443,7 +432,7 @@ vixgl.doStuffWithPlanet = function() {
        vid,
        prop;
  
-   console.log('from ' + col[0] + ',' + col[1] + ',' + col[2] + ',' + col[3] + ' got ' + (planet ? planet.title : '')); 
+   vixgl.util.log('from ' + col[0] + ',' + col[1] + ',' + col[2] + ',' + col[3] + ' got ' + (planet ? planet.title : '')); 
 
    // TODO this is sucky - change it - see def in planets.js
    vixgl.Planet.prototype.stopSpinning = false;

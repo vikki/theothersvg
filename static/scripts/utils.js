@@ -193,3 +193,12 @@ vixgl.util.anyPressed = function(keys) {
    }
    return false;
 };
+
+// could probs do this with a shiny js api?? the offline api perhaps :P TODO
+// and just fallback to the offline hash thing
+vixgl.util.isOffline = function() {
+   "use strict";
+
+   return document.location.hash === '#offline';
+};
+
