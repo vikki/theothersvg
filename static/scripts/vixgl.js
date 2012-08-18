@@ -328,14 +328,12 @@ vixgl.doStuffWithPlanet = function () {
 
    vixgl.util.log('from ' + col[0] + ',' + col[1] + ',' + col[2] + ',' + col[3] + ' got ' + (planet ? planet.title : ''));
 
-   // TODO this is sucky - change it - see def in planets.js
-   vixgl.Planet.prototype.stopSpinning = false;
    document.getElementById('whoo').innerText = 'i am embarassingly happy that you clicked on ' + toShow;
 
    for (prop in this.planets) {
       if (this.planets.hasOwnProperty(prop)) {
          currentPlanet = this.planets[prop];
-         currentPlanet.vidding = false;
+         currentPlanet.selected = false;
          currentPlanet.greyed = (typeof planet !== 'undefined');
          this.proper.updateTextureWith(currentPlanet.origTex, currentPlanet.texture);
       }
@@ -344,10 +342,11 @@ vixgl.doStuffWithPlanet = function () {
    vixgl.removeOldVidEmbeds(vid);
 
    if (planet) {
-      // TODO wat?
       vid = document.getElementById('video' + planet.videoRef);
-      vid = vixgl.drawVid(planet.videoRef);
-      planet.vidding = true;
+      if (!vid) {
+         vid = vixgl.drawVid(planet.videoRef);
+      }
+      planet.selected = true;
       planet.greyed = false;
    }
 };

@@ -20,8 +20,10 @@ vixgl.Planet = vixgl.Planet || function(planetConfig) {
    this.imageUrl = planetConfig.imageUrl;
 
    this.windowToRotate = 1000;
-   this.vidding = false;
+   this.selected = false;
    this.greyed = false;
+   this.spinning = true;
+   this.inCenter = false;
 };
 
 vixgl.Planet.prototype.getGreyingFactor = function () {
@@ -31,7 +33,7 @@ vixgl.Planet.prototype.getGreyingFactor = function () {
 vixgl.Planet.prototype.draw = function (ctx) {
    ctx.mvPushMatrix();
 
-   if (this.vidding) {
+   if (this.selected) {
       mat4.rotate(ctx.mvMatrix, 3.0, [0, 1, 0]);
    }
 
@@ -53,45 +55,28 @@ vixgl.Planet.prototype.draw = function (ctx) {
    ctx.mvPopMatrix();
 };
 
-// TODO - fix  - this smells
-// because stopSpinning is a feature of the viz/solar system, rather than of the planets
-// therefore it should be moved out of here into one of those
-// we also need to move quite a lot of this logic out of the planet .. 
-// not sure where to draw the line with the vid stuff though
-
-// so maybe the planet should have a boolean, spinning
-// which could be set by the solar system
-// so it doesn't have to depend on the solar system
-// its fine for the solar system to depend on planets, cos they do in RL :)
-
-// vidding is a property of the solar system or the app itself
-
-vixgl.Planet.prototype.stopSpinning = false;
+// TODO state machine me 
 vixgl.Planet.prototype.animate = function (elapsed) {
    var leftCentralBound = 1.73 * Math.PI,
        rightCentralBound = 1.77 * Math.PI,
-       inCenter = this.rTri >= leftCentralBound && this.rTri <= rightCentralBound,
        vid = document.querySelector('#video' + this.videoRef);
 
-   if (this.stopSpinning && !this.vidding) {
-      this.stopSpinning = false;
+   this.inCenter = this.rTri >= leftCentralBound && this.rTri <= rightCentralBound;
+
+   if (!this.selected) {
+      this.spinning = true;
    }
 
-   if (!this.stopSpinning) {
-      if (this.vidding && inCenter) {
+   if (this.spinning) {
+      if (this.selected && this.inCenter) {
          this.rTri = 1.75 * Math.PI;
-         this.stopSpinning = true;
-         //this.scale = 0.3;
+         this.spinning = false;
 
          if (vid) {
             console.log('play vid');
             vid.play();
          }
       } else {
-         this.scale = this.origScale;
-         // normalize rTri such that it is always less than 360deg (==Math.PI*2)
-         // you don't need to do this for the rotation maths to work 
-         // cos its a sin wave but its handy for the where-ami maths :P
          if (this.rTri <= 2 * Math.PI) {
             this.rTri += (this.rotationAngleDuringWindow * elapsed / this.windowToRotate);
          } else {
@@ -100,7 +85,7 @@ vixgl.Planet.prototype.animate = function (elapsed) {
       }
    }
 
-   if (this.vidding && this.stopSpinning) {
+   if (this.selected && !this.spinning) {
       var vid = document.getElementById('video' + this.videoRef);
       this.texture = vixgl.proper.updateTextureWith(vid, this.texture);
    }
@@ -116,3 +101,4 @@ vixgl.Planet.prototype.equalsColor = function (toMatch) {
 vixgl.Planet.prototype.equalsImageUrl = function (toMatch) {
    return this.imageUrl === toMatch;
 };
+
