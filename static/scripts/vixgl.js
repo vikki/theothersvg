@@ -149,6 +149,27 @@ vixgl.animatePlanets = function (elapsed) {
    vixgl.camera.updateViewingAngle(elapsed);
 };
 
+vixgl.drawPlanets = function() {
+   for (prop in this.planets) {
+      if (this.planets.hasOwnProperty(prop)) {
+         this.mvPushMatrix();
+
+         // maybe draw planet should be on planet (figures :P)
+         // and the glCtx could have some notion of world objects
+         // that it should iterate over,
+         // push the mvMatrix,
+         // draw the world object
+         // then pop the mvMatrix and carry on 
+         planet = this.planets[prop];
+         mat4.rotate(this.mvMatrix, planet.rTri, [0, 1, 0]);
+         mat4.translate(this.mvMatrix, planet.distFromCentre);
+         planet.draw(this);
+
+         this.mvPopMatrix();
+      }
+   }
+} ;
+
 // ask the browser to call us again, next time stuff needs to be animated
 // i.e. when we're in focus and the screen needs repainting
 // then draw the scene, and set it up for next time (move things) 
@@ -191,7 +212,7 @@ vixgl.initWorldObjects = function (vvc) {
       color: [255, 255, 0, 255],
       title: 'the SUN'
    });
-   this.planets.push(planet);
+   this.addPlanet(planet);
 
    for (; i < 10; i++) {
       if (vvc.entries[i].shares > maxShareCount) {
@@ -223,8 +244,15 @@ vixgl.initWorldObjects = function (vvc) {
          videoRef: entry.videoRef
       });
 
-      this.planets.push(planet);
+      this.addPlanet(planet);
    }
+};
+
+// TODO un-barf - this shouldn't be necessary once refactored :S
+vixgl.addPlanet = function(planet) {
+   this.planets.push(planet);
+   this.dummy.worldObjects.push(planet);
+   this.proper.worldObjects.push(planet);
 };
 
 vixgl.getVideoLocation = function (videoRef) {
@@ -293,22 +321,6 @@ vixgl.doStuff = function () {
    vixgl.util.addEventHandler(vixgl_canvas, 'onclick', bindy);
 };
 
-vixgl.getNewPlanetFromImageUrl = function (imgToMatch) {
-   "use strict";
-
-   var matcher = vixgl.Planet.prototype.equalsImageUrl,
-      imgParam;
-
-   if (!vixgl.util.isOffline()) {
-      imgParam = vixgl.util.getQueryStringParam(imgToMatch, 'img');
-      if (imgParam) {
-         imgToMatch = imgParam;
-      }
-   }
-
-   return vixgl.util.getFirstMatching(this.planets, matcher, imgToMatch);
-};
-
 vixgl.getPlanetFromColor = function (colorToMatch) {
    "use strict";
 
@@ -326,7 +338,7 @@ vixgl.doStuffWithPlanet = function () {
       prop,
       currentPlanet;
 
-   vixgl.util.log('from ' + col[0] + ',' + col[1] + ',' + col[2] + ',' + col[3] + ' got ' + (planet ? planet.title : ''));
+   vixgl.util.log('from ' + col[0] + ',' + col[1] + ',' + col[2] + ',' + col[3] + ' got ' + toShow);
 
    document.getElementById('whoo').innerText = 'i am embarassingly happy that you clicked on ' + toShow;
 
@@ -335,7 +347,7 @@ vixgl.doStuffWithPlanet = function () {
          currentPlanet = this.planets[prop];
          currentPlanet.selected = false;
          currentPlanet.greyed = (typeof planet !== 'undefined');
-         this.proper.updateTextureWith(currentPlanet.origTex, currentPlanet.texture);
+         this.proper.updateTextureWith(currentPlanet.origTexture, currentPlanet.texture);
       }
    }
 
