@@ -1,382 +1,353 @@
-/*global vixgl:false, mat4:false, mat3:false */
+/*global vec3:false, glCtx:false, requestAnimFrame:false */
 
-var glCtx = function (canvasId, fragmentShaderId, vertexShaderId) {
+// TODO oh fucking hell use a proper loader
+// could have an overarching webgl object
+// that has multiple contexts
+// which then can encapsulate webgl calls
+// TODO try to do this with mixins rather than subclassing
+// could even mix in the picker (dummy gl ctx) properly as its just another feature :D
+// will still automatically need 2 ctxs, one for dummy, one for real
+// could maybe throw in observer pattern here?
+// TODO not yet!!!
+
+/*var vixgl = vixgl || {
+   planets: [],
+   dummy: new glCtx('dummygl', 'dummyFragmentShader', 'dummyVertexShader'),
+   proper: new glCtx('vixgl', 'fragmentShader', 'vertexShader')
+};*/
+var vixgl = vixgl || {};
+vixgl.planets = [];
+
+// TODO one fine day most of these attributes can be set up with mixins for lighting and textures etc.
+// not quite there yet though!
+vixgl.proper = new glCtx('vixgl', 'fragmentShader', 'vertexShader');
+
+vixgl.proper.initUniforms = function () {
    "use strict";
 
-   this.canvasId = canvasId;
-   this.fragmentShaderId = fragmentShaderId;
-   this.vertexShaderId = vertexShaderId;
-   this.mvMatrix = mat4.create();
-   this.pMatrix = mat4.create();
+   var shaderProgram = this.shaderProgram,
+      gl = this.gl;
+
+   shaderProgram.mvMatrixUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
+   shaderProgram.pMatrixUniform = gl.getUniformLocation(shaderProgram, 'uPMatrix');
+   shaderProgram.nMatrixUniform = gl.getUniformLocation(shaderProgram, 'uNMatrix');
+   shaderProgram.samplerUniform = gl.getUniformLocation(shaderProgram, 'uSampler');
+   shaderProgram.scale = gl.getUniformLocation(shaderProgram, 'uScale');
+   shaderProgram.greyingFactor = gl.getUniformLocation(shaderProgram, 'uGreyingFactor');
+   shaderProgram.ambientColorUniform = gl.getUniformLocation(shaderProgram, 'uAmbientColor');
+   shaderProgram.lightingDirectionUniform = gl.getUniformLocation(shaderProgram, 'uLightingDirection');
+   shaderProgram.directionalColorUniform = gl.getUniformLocation(shaderProgram, 'uDirectionalColor');
 };
 
-glCtx.prototype.drawStuff = function () {
+vixgl.proper.initAttributes = function () {
    "use strict";
 
-   this.initGL();
-   this.initShaders();
-   this.initBuffers();
-   // don't do for dummy?
-   this.initTextures();
+   var prog = this.shaderProgram,
+      gl = this.gl;
 
-   this.gl.clearColor(0.0, 0.0, 0.0, 0.1);
-   this.gl.enable(this.gl.DEPTH_TEST);
+   prog.vertexPositionAttribute = gl.getAttribLocation(prog, 'aVertexPosition');
+   gl.enableVertexAttribArray(prog.vertexPositionAttribute);
+
+   prog.vertexNormalAttribute = gl.getAttribLocation(prog, 'aVertexNormal');
+   gl.enableVertexAttribArray(prog.vertexNormalAttribute);
+
+   prog.textureCoordAttribute = gl.getAttribLocation(prog, 'aTextureCoord');
+   gl.enableVertexAttribArray(prog.textureCoordAttribute);
 };
 
-glCtx.prototype.initGL = function () {
-   "use strict";
-
-   var canvas = document.getElementById(this.canvasId);
-   // ~= gl but future proof : canvas.getContext('experimental-webgl');
-   //properGL = WebGLUtils.setupWebGL(canvas);
-   this.gl = canvas.getContext('experimental-webgl', {
-      preserveDrawingBuffer: true
-   });
-   this.viewportWidth = canvas.width;
-   this.viewportHeight = canvas.height;
-};
-
-glCtx.prototype.initShaders = function () {
-   "use strict";
-
-   var fragmentShader = this.getShader(this.gl, this.fragmentShaderId),
-       vertexShader = this.getShader(this.gl, this.vertexShaderId),
-       shaderStatus;
-
-   this.shaderProgram = this.gl.createProgram();
-   this.gl.attachShader(this.shaderProgram, vertexShader);
-   this.gl.attachShader(this.shaderProgram, fragmentShader);
-   this.gl.linkProgram(this.shaderProgram);
-
-   shaderStatus = this.gl.getProgramParameter(this.shaderProgram, this.gl.LINK_STATUS);
-   if (!shaderStatus) {
-      console.log('webgl didnae work' + shaderStatus);
-   } else {
-      console.log('program is shiny');
-   }
-
-   this.gl.useProgram(this.shaderProgram);
-
-   this.initUniforms();
-   this.initAttributes();
-};
-
-
-glCtx.prototype.setupBuffer = function (contents, itemSize, buffer) {
+vixgl.proper.initProgVars = function (planet) {
    "use strict";
 
    var gl = this.gl,
-       newBuffer = gl.createBuffer();
-   newBuffer.itemSize = itemSize;
-   newBuffer.numItems = contents.length / itemSize;
-   gl.bindBuffer(buffer, newBuffer);
-   return newBuffer;
+      vertices = this.vertices,
+      prog = this.shaderProgram,
+      lightingDirection = [0.25, - 0.25, - 1.0],
+      adjustedLD = vec3.create();
+
+   gl.bindBuffer(gl.ARRAY_BUFFER, vertices.normalBuffer);
+   gl.vertexAttribPointer(prog.vertexNormalAttribute, vertices.normalBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+   gl.bindBuffer(gl.ARRAY_BUFFER, vertices.textureCoordBuffer);
+   gl.vertexAttribPointer(prog.textureCoordAttribute, vertices.textureCoordBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+   gl.activeTexture(gl.TEXTURE0);
+   gl.bindTexture(gl.TEXTURE_2D, planet.texture);
+   gl.uniform1i(prog.samplerUniform, 0);
+
+   // push ambient light RGB uniform to shader
+   gl.uniform3f(prog.ambientColorUniform, 0.2, 0.2, 0.2);
+
+   // directional lighting vector
+   vec3.normalize(lightingDirection, adjustedLD);
+   // reverse the vector cos we specify it in terms of where its going
+   // but we calculate it in terms of where its coming from
+   vec3.scale(adjustedLD, - 1);
+   // push it up to the shader
+   gl.uniform3fv(prog.lightingDirectionUniform, adjustedLD);
+
+   // push directional lighting colour up to the shader
+   gl.uniform3f(prog.directionalColorUniform, 0.7, 0.7, 0.7);
+
+   gl.uniform3fv(prog.greyingFactor, planet.getGreyingFactor());
 };
 
-glCtx.prototype.setupFloat32Buffer = function (contents, itemSize, buffer) {
-   "use strict";
 
-   var newBuffer = this.setupBuffer(contents, itemSize, buffer);
-   this.gl.bufferData(buffer, new Float32Array(contents), this.gl.STATIC_DRAW);
-   return newBuffer;
+vixgl.dummy = new glCtx('dummygl', 'dummyFragmentShader', 'dummyVertexShader');
+
+vixgl.dummy.initTextures = function () {
+   "use strict";
 };
 
-glCtx.prototype.setupUint16Buffer = function (contents, itemSize, buffer) {
+vixgl.dummy.initUniforms = function () {
    "use strict";
 
-   var newBuffer = this.setupBuffer(contents, itemSize, buffer);
-   this.gl.bufferData(buffer, new Uint16Array(contents), this.gl.STATIC_DRAW);
-   return newBuffer;
+   this.shaderProgram.mvMatrixUniform = this.gl.getUniformLocation(this.shaderProgram, "uMVMatrix");
+   this.shaderProgram.pMatrixUniform = this.gl.getUniformLocation(this.shaderProgram, 'uPMatrix');
+   this.shaderProgram.scale = this.gl.getUniformLocation(this.shaderProgram, 'uScale');
+   this.shaderProgram.color = this.gl.getUniformLocation(this.shaderProgram, 'uColor');
 };
 
-glCtx.prototype.initBuffers = function () {
+vixgl.dummy.initAttributes = function () {
    "use strict";
 
-   var latitudeBands = 30,
-       longitudeBands = 30,
-       radius = 2,
-       vertexPositionData = [],
-       normalData = [],
-       textureCoordData = [],
-       latNumber = 0,
-       longNumber = 0,
-       theta = 0,
-       sinTheta = 0,
-       cosTheta = 0,
-       phi = 0,
-       sinPhi = 0,
-       cosPhi = 0,
-       x = 0,
-       y = 0,
-       z = 0,
-       u = 0,
-       v = 0,
-       indexData = [],
-       topLeft,
-       bottomLeft,
-       topRight,
-       bottomRight;
-
-   this.vertices = {};
-
-   for (; latNumber <= latitudeBands; latNumber++) {
-       theta = latNumber * Math.PI / latitudeBands;
-       sinTheta = Math.sin(theta);
-       cosTheta = Math.cos(theta);
-
-      for (longNumber = 0; longNumber <= longitudeBands; longNumber++) {
-         phi = longNumber * 2 * Math.PI / longitudeBands;
-         sinPhi = Math.sin(phi);
-         cosPhi = Math.cos(phi);
-
-         x = cosPhi * sinTheta;
-         y = cosTheta;
-         z = sinPhi * sinTheta;
-
-         u = 1 - (longNumber / longitudeBands);
-         v = 1 - (latNumber / latitudeBands);
-
-         normalData.push(x);
-         normalData.push(y);
-         normalData.push(z);
-
-         textureCoordData.push(u);
-         textureCoordData.push(v);
-
-         vertexPositionData.push(radius * x);
-         vertexPositionData.push(radius * y);
-         vertexPositionData.push(radius * z);
-      }
-   }
-
-   this.vertices.normalBuffer = this.setupFloat32Buffer(normalData, 3, this.gl.ARRAY_BUFFER);
-   this.vertices.textureCoordBuffer = this.setupFloat32Buffer(textureCoordData, 2, this.gl.ARRAY_BUFFER);
-   this.vertices.positionBuffer = this.setupFloat32Buffer(vertexPositionData, 3, this.gl.ARRAY_BUFFER);
-
-   for (latNumber = 0; latNumber < latitudeBands; latNumber++) {
-      for (longNumber = 0; longNumber < longitudeBands; longNumber++) {
-         topLeft = (latNumber * (longitudeBands + 1)) + longNumber;
-         bottomLeft = topLeft + longitudeBands + 1;
-         topRight = topLeft + 1;
-         bottomRight = bottomLeft + 1;
-
-         indexData.push(topLeft);
-         indexData.push(bottomLeft);
-         indexData.push(topRight);
-
-         indexData.push(bottomLeft);
-         indexData.push(bottomRight);
-         indexData.push(topRight);
-      }
-   }
-
-   this.vertices.indexBuffer = this.setupUint16Buffer(indexData, 1, this.gl.ELEMENT_ARRAY_BUFFER);
+   this.shaderProgram.vertexPositionAttribute = this.gl.getAttribLocation(this.shaderProgram, 'aVertexPosition');
+   this.gl.enableVertexAttribArray(this.shaderProgram.vertexPositionAttribute);
 };
 
-// TODO dep on planets - shouldn't be in here
-glCtx.prototype.initTextures = function () {
+vixgl.dummy.initProgVars = function (planet) {
    "use strict";
-   
+
+   var r = planet.color[0] / 255,
+      g = planet.color[1] / 255,
+      b = planet.color[2] / 255,
+      a = planet.color[3] / 255;
+   this.gl.uniform4fv(this.shaderProgram.color, [r, g, b, a]);
+};
+
+vixgl.drawStuff = function (vvc) {
+   "use strict";
+
+   vixgl.initWorldObjects(vvc);
+
+   vixgl.dummy.drawStuff();
+   vixgl.proper.drawStuff();
+
+   vixgl.tick();
+};
+
+vixgl.animatePlanets = function (elapsed) {
+   "use strict";
+
    var prop;
-
-   for (prop in vixgl.planets) {
-      if (vixgl.planets.hasOwnProperty(prop)) {
-         vixgl.planets[prop].origTex = this.initTexture(vixgl.planets[prop].imageUrl);
+   for (prop in this.planets) {
+      if (this.planets.hasOwnProperty(prop)) {
+         this.planets[prop].animate(elapsed);
       }
    }
+
+   // TODO aiee gonna have to use mixins for this to avoid dependency....
+   vixgl.camera.updateViewingAngle(elapsed);
 };
 
-glCtx.prototype.initTexture = function (vid) {
+// ask the browser to call us again, next time stuff needs to be animated
+// i.e. when we're in focus and the screen needs repainting
+// then draw the scene, and set it up for next time (move things) 
+vixgl.tick = function () {
    "use strict";
 
-   var foo = new Image(),
-       ctx = this;
+   var self = vixgl,
+      animatePlanetsFunc = vixgl.util.bind(self, vixgl.animatePlanets);
 
-   foo.onload = function () {
-      var realUrl = vixgl.matchVideo(this.src),
-          planet = vixgl.getNewPlanetFromImageUrl(realUrl),
-          texture = ctx.createTextureFromImage(this);
-      planet.texture = texture;
-   };
-   foo.src = vixgl.getVideoLocation(vid);
-   return foo;
+   requestAnimFrame(vixgl.tick);
+   vixgl.camera.handleKeys();
+   vixgl.proper.drawScene();
+   vixgl.dummy.drawScene();
+
+   vixgl.util.animate(animatePlanetsFunc);
 };
 
-glCtx.prototype.makeTextureFrom = function (image) {
+vixgl.initWorldObjects = function (vvc) {
    "use strict";
 
-   var texture = this.gl.createTexture();
+   var i = 0,
+      maxShareCount = 0,
+      totalShareCount = 0,
+      allowForSun = 0,
+      maxDistFromSun = 25,
+      outSoFar = allowForSun,
+      planet,
+      entry,
+      sharePerc,
+      thisDist,
+      dist,
+      planetUrl;
 
-   this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
-   this.gl.pixelStorei(this.gl.UNPACK_FLIP_Y_WEBGL, true);
-   this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, image);
-   this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST);
-   this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST);
-   // make the current texture null (tidy up)
-   this.gl.bindTexture(this.gl.TEXTURE_2D, null);
+   planet = new vixgl.Planet({
+      rTri: 0.1,
+      startingAngle: 0,
+      distFromCentre: [0, 0, 0],
+      imageUrl: vixgl.config.getConfig()['sunUrl'],
+      scale: 0.5,
+      color: [255, 255, 0, 255],
+      title: 'the SUN'
+   });
+   this.planets.push(planet);
 
-   return texture;
-};
-
-glCtx.prototype.createTextureFromImage = function (image) {
-   "use strict";
-
-   var texture = this.gl.createTexture();
-   return this.updateTextureWith(image, texture);
-};
-
-glCtx.prototype.makeImageSuitableForTexture = function (image) {
-   "use strict";
-
-   var width,
-       height,
-       ctx,
-       canvas,
-       centerX,
-       centerY;
-
-   image.crossOrigin = '';
-   // it probs should be image.width not image.videoWidth or clientWidth but doesn't work with <video>
-   // fix with functional programming :P
-   if (image.tagName && image.tagName === 'IMG') {
-      width = image.width;
-      height = image.height;
-   } else {
-      width = image.videoWidth;
-      height = image.videoHeight;
+   for (; i < 10; i++) {
+      if (vvc.entries[i].shares > maxShareCount) {
+         maxShareCount = vvc.entries[i].shares;
+      }
+      totalShareCount += vvc.entries[i].shares;
    }
 
-   if (!vixgl.util.isPowerOfTwo(width) || !vixgl.util.isPowerOfTwo(height)) {
-      // Scale up the texture to the next highest power of two dimensions.
-      canvas = document.createElement("canvas");
-      canvas.style = 'background-color: #FFFF00';
-      canvas.width = vixgl.util.nextHighestPowerOfTwo(width);
-      canvas.height = vixgl.util.nextHighestPowerOfTwo(height);
-      ctx = canvas.getContext("2d");
+   for (i = 0; i < 10; i++) {
+      entry = vvc.entries[i];
+      sharePerc = entry.shares / totalShareCount;
 
-      // almost black, but a bit lighter so you can see the contours a bit
-      // better
-      ctx.fillStyle = '#1F1F1F';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      thisDist = sharePerc * (maxDistFromSun - allowForSun);
+      dist = thisDist + outSoFar;
+      outSoFar += thisDist;
 
-      // draw image in the middle
-      centerX = canvas.width / 2 - width / 2;
-      centerY = canvas.height / 2 - height / 2;
-      ctx.drawImage(image, centerX, centerY, width, height);
+      planetUrl = vixgl.config.getConfig()['planetBaseUrl'];
+      planetUrl = planetUrl.replace('%s', entry.videoRef);
 
-      image = canvas;
+      planet = new vixgl.Planet({
+         rTri: Math.PI * 2 * sharePerc,
+         startingAngle: 0.2 * i,
+         distFromCentre: [dist, 0.0, dist],
+         imageUrl: planetUrl,
+         scale: sharePerc + 1.5,
+         color: vixgl.util.randColor(),
+         title: entry.title,
+         video: entry.hostingSiteUrl,
+         videoRef: entry.videoRef
+      });
+
+      this.planets.push(planet);
    }
-
-   return image;
 };
 
-glCtx.prototype.updateTextureWith = function (image, texture) {
+vixgl.getVideoLocation = function (videoRef) {
    "use strict";
 
-   image = this.makeImageSuitableForTexture(image);
-
-   this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
-   this.gl.pixelStorei(this.gl.UNPACK_FLIP_Y_WEBGL, true);
-   this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, image);
-   this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST);
-   this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST);
-   // make the current texture null (tidy up)
-   this.gl.bindTexture(this.gl.TEXTURE_2D, null);
-
-   return texture;
+   var videoLocationBase = vixgl.config.getConfig()['videoLocationBase'];
+   return videoLocationBase.replace('%s', videoRef);
 };
 
-glCtx.prototype.setMatrixUniforms = function () {
+// TODO this should handle if we've already drawn the video?
+// and get rid of old ones
+// or maybe some other method wrapping it should
+vixgl.drawVid = function (videoRef) {
    "use strict";
 
-   var normalMatrix = mat3.create();
+   var vid = document.createElement('video');
 
-   this.gl.uniformMatrix4fv(this.shaderProgram.pMatrixUniform, false, this.pMatrix);
-   this.gl.uniformMatrix4fv(this.shaderProgram.mvMatrixUniform, false, this.mvMatrix);
-
-   mat4.toInverseMat3(this.mvMatrix, normalMatrix);
-   mat3.transpose(normalMatrix);
-   this.gl.uniformMatrix3fv(this.shaderProgram.nMatrixUniform, false, normalMatrix);
+   vid.id = 'video' + videoRef;
+   vid.style.display = 'none';
+   vid.height = '256';
+   vid.width = '256';
+   vid.className = 'vidTexture';
+   vid.src = '/vid?vid=http://streaming.vikkiread.co.uk.s3.amazonaws.com/' + videoRef + '.mp4';
+   document.body.appendChild(vid);
+   return vid;
 };
 
-glCtx.prototype.mvMatrixStack = [];
 
-glCtx.prototype.mvPushMatrix = function () {
+vixgl.removeOldVidEmbeds = function (current) {
    "use strict";
 
-   var copy = mat4.create();
-   mat4.set(this.mvMatrix, copy);
-   this.mvMatrixStack.push(copy);
-};
+   // call stop  + remove old video elements - hopefully this prevents mem leakages? 
+   var vidTextures = document.querySelectorAll('.vidTexture'),
+      vid;
 
-glCtx.prototype.mvPopMatrix = function () {
-   "use strict";
-
-   if (this.mvMatrixStack.length === 0) {
-      throw "no pringles for you!";
+   for (var i = 0; i < vidTextures.length; i++) {
+      vid = vidTextures[i];
+      if (vid === current) {
+         continue;
+      }
+      vid.pause();
+      // http://blog.pearce.org.nz/2010/11/how-to-stop-video-or-audio-element.html
+      vid.src = '';
+      vid.currentSrc = '';
+      vid.load();
+      vid.parentElement.removeChild(vid);
    }
-   this.mvMatrix = this.mvMatrixStack.pop();
 };
 
-glCtx.prototype.drawScene = function () {
+vixgl.setupChartViz = function (oReq) {
    "use strict";
-   /*jshint bitwise: false */
 
-   var prop,
-       planet;
+   var vvc = JSON.parse(oReq.responseText);
+   console.dir(vvc);
+   vixgl.drawStuff(vvc);
+};
 
-   this.gl.viewport(0, 0, this.viewportWidth, this.viewportHeight);
-   this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
-   mat4.perspective(45, this.viewportWidth / this.viewportHeight, 0.1, 100.0, this.pMatrix);
+vixgl.doStuff = function () {
+   "use strict";
 
-   mat4.identity(this.mvMatrix);
-   mat4.translate(this.mvMatrix, [0.0, 0.0, - 30.0]);
+   var vvcJsonUrl = vixgl.config.getConfig()['vvcJson'],
+      vixgl_canvas = document.getElementById('vixgl');
 
-   vixgl.camera.updateSceneForCamera(this);
+   vixgl.util.doAjaxRequest(vvcJsonUrl, vixgl.setupChartViz);
+   var bindy  = vixgl.util.bind(vixgl, vixgl.doStuffWithPlanet);
+   vixgl.util.addEventHandler(vixgl_canvas, 'onclick', bindy);
+};
 
-   // TODO dep on planets - shouldn't be in here
-   for (prop in vixgl.planets) {
-      if (vixgl.planets.hasOwnProperty(prop)) {
-         this.mvPushMatrix();
-   
-         planet = vixgl.planets[prop];
-         mat4.rotate(this.mvMatrix, planet.rTri, [0, 1, 0]);
-         mat4.translate(this.mvMatrix, planet.distFromCentre);
-         planet.draw(this);
-   
-         this.mvPopMatrix();
+vixgl.getNewPlanetFromImageUrl = function (imgToMatch) {
+   "use strict";
+
+   var matcher = vixgl.Planet.prototype.equalsImageUrl,
+      imgParam;
+
+   if (!vixgl.util.isOffline()) {
+      imgParam = vixgl.util.getQueryStringParam(imgToMatch, 'img');
+      if (imgParam) {
+         imgToMatch = imgParam;
       }
    }
+
+   return vixgl.util.getFirstMatching(this.planets, matcher, imgToMatch);
 };
 
-glCtx.prototype.getShader = function(ctx, shaderName) {
+vixgl.getPlanetFromColor = function (colorToMatch) {
    "use strict";
 
-   // should do this with ajax
-   // and store shaders in diff files
-   var shaderScript = document.getElementById(shaderName),
-       str = '',
-       shaderMap = {},
-       k = shaderScript.firstChild;
-
-   for (; k; k = k.nextSibling) {
-      if (k.nodeType === 3) {
-         str += k.textContent;
-      }
-   }   
-    
-   shaderMap['x-shader/x-fragment'] = ctx.FRAGMENT_SHADER;
-   shaderMap['x-shader/x-vertex']   = ctx.VERTEX_SHADER;
-  
-   var shader = ctx.createShader(shaderMap[shaderScript.type]);
-   console.dir(shader);
-   ctx.shaderSource(shader, str);
-   ctx.compileShader(shader);
-
-   if (!ctx.getShaderParameter(shader, ctx.COMPILE_STATUS)){
-           console.log(ctx.getShaderInfoLog(shader));
-   } 
-   
-   return shader;
+   return vixgl.util.getFirstMatching(this.planets, vixgl.Planet.prototype.equalsColor, colorToMatch);
 };
 
+vixgl.doStuffWithPlanet = function () {
+   "use strict";
+
+   var coords = vixgl.util.relMouseCoords(event),
+      col = vixgl.util.getColorFromCoords(coords, vixgl.dummy.gl),
+      planet = vixgl.getPlanetFromColor(col),
+      toShow = planet ? planet.title : 'the VOID....',
+      vid,
+      prop,
+      currentPlanet;
+
+   vixgl.util.log('from ' + col[0] + ',' + col[1] + ',' + col[2] + ',' + col[3] + ' got ' + (planet ? planet.title : ''));
+
+   // TODO this is sucky - change it - see def in planets.js
+   vixgl.Planet.prototype.stopSpinning = false;
+   document.getElementById('whoo').innerText = 'i am embarassingly happy that you clicked on ' + toShow;
+
+   for (prop in this.planets) {
+      if (this.planets.hasOwnProperty(prop)) {
+         currentPlanet = this.planets[prop];
+         currentPlanet.vidding = false;
+         currentPlanet.greyed = (typeof planet !== 'undefined');
+         this.proper.updateTextureWith(currentPlanet.origTex, currentPlanet.texture);
+      }
+   }
+
+   vixgl.removeOldVidEmbeds(vid);
+
+   if (planet) {
+      // TODO wat?
+      vid = document.getElementById('video' + planet.videoRef);
+      vid = vixgl.drawVid(planet.videoRef);
+      planet.vidding = true;
+      planet.greyed = false;
+   }
+};

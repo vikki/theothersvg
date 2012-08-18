@@ -160,14 +160,14 @@ vixgl.util.getQueryStringParam = function getQueryStringParam(url, paramName) {
 };
 
 // TODO unsuckify this - think x-browser
-vixgl.util.addEventHandler = function addEventHandler(eventName, eventHandler) {
+vixgl.util.addEventHandler = function addEventHandler(element, eventName, eventHandler) {
    "use strict";
 
-   document[eventName] = eventHandler;
+   element[eventName] = eventHandler;
 };
 
 // TODO - do this on init?
-vixgl.util.addEventHandler('onkeydown', function handleKeyDown(event) {
+vixgl.util.addEventHandler(document, 'onkeydown', function handleKeyDown(event) {
       "use strict";
 
       console.log('you pressed ' + event.keyCode);
@@ -175,7 +175,7 @@ vixgl.util.addEventHandler('onkeydown', function handleKeyDown(event) {
       vixgl.util.currentlyPressedKeys[event.keyCode] = 1;
    });
 
-vixgl.util.addEventHandler('onkeyup', function handleKeyUp(event) {
+vixgl.util.addEventHandler(document, 'onkeyup', function handleKeyUp(event) {
      "use strict";
  
       vixgl.util.currentlyPressedKeys[event.keyCode] = null;
@@ -200,5 +200,26 @@ vixgl.util.isOffline = function() {
    "use strict";
 
    return document.location.hash === '#offline';
+};
+
+vixgl.util.lastTime = 0;
+
+vixgl.util.animate = function(onAnimate) {
+   "use strict";
+
+   var timeNow = new Date().getTime(),
+       elapsed = timeNow - this.lastTime;
+
+   if (this.lastTime !== 0){
+      onAnimate(elapsed);
+   }
+
+   this.lastTime = timeNow;
+};
+
+vixgl.util.bind = function(obj, func) {
+   return function(args) {
+      func.call(obj, args);
+   };
 };
 

@@ -68,17 +68,21 @@ vixgl.Planet.prototype.draw = function (ctx) {
 
 vixgl.Planet.prototype.stopSpinning = false;
 vixgl.Planet.prototype.animate = function (elapsed) {
-   if (!this.stopSpinning) {
-      var leftCentralBound = 1.73 * Math.PI;
-      var rightCentralBound = 1.77 * Math.PI;
-      var inCenter = this.rTri >= leftCentralBound && this.rTri <= rightCentralBound;
+   var leftCentralBound = 1.73 * Math.PI,
+       rightCentralBound = 1.77 * Math.PI,
+       inCenter = this.rTri >= leftCentralBound && this.rTri <= rightCentralBound,
+       vid = document.querySelector('#video' + this.videoRef);
 
+   if (this.stopSpinning && !this.vidding) {
+      this.stopSpinning = false;
+   }
+
+   if (!this.stopSpinning) {
       if (this.vidding && inCenter) {
          this.rTri = 1.75 * Math.PI;
          this.stopSpinning = true;
          //this.scale = 0.3;
 
-         var vid = document.querySelector('#video' + this.videoRef);
          if (vid) {
             console.log('play vid');
             vid.play();

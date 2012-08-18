@@ -75,6 +75,7 @@ vixgl.camera.handleKeys = function () {
 vixgl.camera.updateViewingAngle = function (elapsed) {
    "use strict";
 
+
    var joggingAngle = 0.0005;
    if (this.speed !== 0) {
       this.xPos -= Math.sin(this.yaw) * this.speed * elapsed;
