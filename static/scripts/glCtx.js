@@ -8,6 +8,7 @@ var glCtx = function (canvasId, fragmentShaderId, vertexShaderId) {
    this.vertexShaderId = vertexShaderId;
    this.mvMatrix = mat4.create();
    this.pMatrix = mat4.create();
+   this.worldObjects = [];
 };
 
 glCtx.prototype.drawStuff = function () {
@@ -173,33 +174,32 @@ glCtx.prototype.initBuffers = function () {
    this.vertices.indexBuffer = this.setupUint16Buffer(indexData, 1, this.gl.ELEMENT_ARRAY_BUFFER);
 };
 
-// TODO dep on planets - shouldn't be in here
 glCtx.prototype.initTextures = function () {
    "use strict";
    
-   var prop;
+   var prop,
+       worldObject;
 
-   for (prop in vixgl.planets) {
-      if (vixgl.planets.hasOwnProperty(prop)) {
-         vixgl.planets[prop].origTex = this.initTexture(vixgl.planets[prop].imageUrl);
+   for (prop in this.worldObjects) {
+      if (this.worldObjects.hasOwnProperty(prop)) {
+         worldObject = this.worldObjects[prop];
+         worldObject.origTexture = this.initTexture(worldObject);
       }
    }
 };
 
-glCtx.prototype.initTexture = function (vid) {
+glCtx.prototype.initTexture = function (worldObject) {
    "use strict";
 
-   var foo = new Image(),
+   var imgForTexture = new Image(),
        ctx = this;
 
-   foo.onload = function () {
-      //var realUrl = vixgl.matchVideo(this.src),
-      var planet = vixgl.getNewPlanetFromImageUrl(this.src),
-          texture = ctx.createTextureFromImage(this)
-      planet.texture = texture;
+   imgForTexture.onload = function () {
+      var texture = ctx.createTextureFromImage(this)
+      worldObject.texture = texture;
    };
-   foo.src = vixgl.getVideoLocation(vid);
-   return foo;
+   imgForTexture.src = vixgl.getVideoLocation(worldObject.imageUrl);
+   return imgForTexture;
 };
 
 glCtx.prototype.makeTextureFrom = function (image) {
@@ -221,7 +221,7 @@ glCtx.prototype.makeTextureFrom = function (image) {
 glCtx.prototype.createTextureFromImage = function (image) {
    "use strict";
 
-   var texture = this.gl.createTexture();
+var texture = this.gl.createTexture();
    return this.updateTextureWith(image, texture);
 };
 
@@ -323,7 +323,7 @@ glCtx.prototype.drawScene = function () {
    /*jshint bitwise: false */
 
    var prop,
-       planet;
+       worldObject;
 
    this.gl.viewport(0, 0, this.viewportWidth, this.viewportHeight);
    this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
@@ -334,15 +334,17 @@ glCtx.prototype.drawScene = function () {
 
    vixgl.camera.updateSceneForCamera(this);
 
-   // TODO dep on planets - shouldn't be in here
-   for (prop in vixgl.planets) {
-      if (vixgl.planets.hasOwnProperty(prop)) {
+   for (prop in this.worldObjects) {
+      if (this.worldObjects.hasOwnProperty(prop)) {
          this.mvPushMatrix();
    
-         planet = vixgl.planets[prop];
-         mat4.rotate(this.mvMatrix, planet.rTri, [0, 1, 0]);
-         mat4.translate(this.mvMatrix, planet.distFromCentre);
-         planet.draw(this);
+         worldObject = this.worldObjects[prop];
+         if (typeof worldObject.move === 'function') {
+            worldObject.move(this.mvMatrix);
+         }
+         if (typeof worldObject.move === 'function') {
+            worldObject.draw(this);
+         }
    
          this.mvPopMatrix();
       }
@@ -352,7 +354,7 @@ glCtx.prototype.drawScene = function () {
 glCtx.prototype.getShader = function(ctx, shaderName) {
    "use strict";
 
-   // should do this with ajax
+   // TODO should do this with ajax
    // and store shaders in diff files
    var shaderScript = document.getElementById(shaderName),
        str = '',

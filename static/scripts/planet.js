@@ -55,6 +55,10 @@ vixgl.Planet.prototype.draw = function (ctx) {
    ctx.mvPopMatrix();
 };
 
+// spinning
+// => selected
+// 
+
 // TODO state machine me 
 vixgl.Planet.prototype.animate = function (elapsed) {
    var leftCentralBound = 1.73 * Math.PI,
@@ -72,6 +76,7 @@ vixgl.Planet.prototype.animate = function (elapsed) {
          this.rTri = 1.75 * Math.PI;
          this.spinning = false;
 
+         // this shouldn't be in here because its not a feature of the planet...
          if (vid) {
             console.log('play vid');
             vid.play();
@@ -101,4 +106,10 @@ vixgl.Planet.prototype.equalsColor = function (toMatch) {
 vixgl.Planet.prototype.equalsImageUrl = function (toMatch) {
    return this.imageUrl === toMatch;
 };
+
+vixgl.Planet.prototype.move = function(mvMatrix) {
+   mat4.rotate(mvMatrix, this.rTri, [0, 1, 0]);
+   mat4.translate(mvMatrix, this.distFromCentre);
+};
+
 
