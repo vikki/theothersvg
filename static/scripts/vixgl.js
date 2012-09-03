@@ -1,5 +1,9 @@
 /*global vec3:false, glCtx:false, requestAnimFrame:false */
 
+// TODO idea - is there a chrome api for mem usage? an experimental one : 
+// http://developer.chrome.com/extensions/experimental.processes.html
+// n.b. probs needs to enable experimental apis for this to actually do owt
+
 // TODO oh fucking hell use a proper loader
 // could have an overarching webgl object
 // that has multiple contexts
@@ -327,20 +331,37 @@ vixgl.getPlanetFromColor = function (colorToMatch) {
    return vixgl.util.getFirstMatching(this.planets, vixgl.Planet.prototype.equalsColor, colorToMatch);
 };
 
-vixgl.doStuffWithPlanet = function () {
+vixgl.getPlanetFromCoords = function (coords) {
    "use strict";
 
-   var coords = vixgl.util.relMouseCoords(event),
-      col = vixgl.util.getColorFromCoords(coords, vixgl.dummy.gl),
-      planet = vixgl.getPlanetFromColor(col),
-      toShow = planet ? planet.title : 'the VOID....',
-      vid,
-      prop,
-      currentPlanet;
+   var color = vixgl.util.getColorFromCoords(coords, vixgl.dummy.gl),
+       planet = vixgl.util.getFirstMatching(this.planets, vixgl.Planet.prototype.equalsColor, color);
 
-   vixgl.util.log('from ' + col[0] + ',' + col[1] + ',' + col[2] + ',' + col[3] + ' got ' + toShow);
+   vixgl.util.log('from ' + color[0] + ',' + color[1] + ',' + color[2] + ',' + color[3] + ' got ' + planet);
 
-   document.getElementById('whoo').innerText = 'i am embarassingly happy that you clicked on ' + toShow;
+   return planet;
+};
+
+vixgl.anySelectedPlanet = function() {
+   "use strict";
+
+   var prop;
+   for (prop in this.planets) {
+      if (this.planets.hasOwnProperty(prop) && this.planets[prop].selected) {
+         return true;
+      }
+   }
+   return false;
+};
+
+// normal   === no selected planet
+// selected === selected planet, not playing
+// playing  === selected planet, playing
+
+
+vixgl.reset = function(planet, vid) {
+   var prop,
+       currentPlanet;
 
    for (prop in this.planets) {
       if (this.planets.hasOwnProperty(prop)) {
@@ -352,9 +373,26 @@ vixgl.doStuffWithPlanet = function () {
    }
 
    vixgl.removeOldVidEmbeds(vid);
+};
 
+vixgl.doStuffWithPlanet = function () {
+   "use strict";
+
+   var coords = vixgl.util.relMouseCoords(event),
+       planet = vixgl.getPlanetFromCoords(coords),
+       toShow = planet ? planet.title : 'the VOID....',
+       vid;
+
+   document.getElementById('whoo').innerText = 'i am embarassingly happy that you clicked on ' + toShow;
+
+   // ARGH
    if (planet) {
       vid = document.getElementById('video' + planet.videoRef);
+   } 
+   this.reset(planet, vid);
+
+   if (planet) {
+      //vid = document.getElementById('video' + planet.videoRef);
       if (!vid) {
          vid = vixgl.drawVid(planet.videoRef);
       }
@@ -362,3 +400,4 @@ vixgl.doStuffWithPlanet = function () {
       planet.greyed = false;
    }
 };
+

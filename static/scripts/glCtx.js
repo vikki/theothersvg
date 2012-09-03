@@ -332,7 +332,7 @@ glCtx.prototype.drawScene = function () {
    mat4.identity(this.mvMatrix);
    mat4.translate(this.mvMatrix, [0.0, 0.0, - 30.0]);
 
-   vixgl.camera.updateSceneForCamera(this);
+   vixgl.camera.updateSceneForCamera(this.mvMatrix);
 
    for (prop in this.worldObjects) {
       if (this.worldObjects.hasOwnProperty(prop)) {

@@ -30,23 +30,20 @@ vixgl.camera = vixgl.camera || {
    updateViewingAngle : function (elapsed) {
       "use strict";
    
-      var joggingAngle = 0.0005;
       if (this.speed !== 0) {
          this.xPos -= Math.sin(this.yaw) * this.speed * elapsed;
          this.zPos -= Math.cos(this.yaw) * this.speed * elapsed;
-   
-         joggingAngle += elapsed * 0.6; // 0.6 "fiddle factor" -- makes it feel more realistic :-)
       }
       this.yaw   += this.yawRate * elapsed;
       this.pitch += this.pitchRate * elapsed;
    },
 
-   updateSceneForCamera : function(ctx) {
+   updateSceneForCamera : function(mvMatrix) {
       "use strict";
 
-      mat4.rotate(ctx.mvMatrix, - this.pitch, [1, 0, 0]);
-      mat4.rotate(ctx.mvMatrix, - this.yaw, [0, 1, 0]);
-      mat4.translate(ctx.mvMatrix, [-this.xPos, -this.yPos, -this.zPos]);
+      mat4.rotate(mvMatrix, -this.pitch, [1, 0, 0]);
+      mat4.rotate(mvMatrix, -this.yaw, [0, 1, 0]);
+      mat4.translate(mvMatrix, [-this.xPos, -this.yPos, -this.zPos]);
    },
 
    // TODO UGLY You Ain't Go No Alibi :'(
@@ -59,6 +56,7 @@ vixgl.camera = vixgl.camera || {
    // and apply it to the pitchRate, yawRate, and speed
    // or something
    // ORRRR could move the keys stuff into util, or else make it even simpler
+   // and its tested now so you break it as you see fit and find out quickly ;)
    handleKeys : function () {
       "use strict";
 
