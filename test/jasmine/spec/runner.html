@@ -1,0 +1,80 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+  "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+  <title>Jasmine Spec Runner: Jasmine Core</title>
+
+  <link rel="shortcut icon" type="image/png" href="../images/jasmine_favicon.png">
+
+  <link href="../lib/jasmine-core/jasmine.css" rel="stylesheet"/>
+  <script type="text/javascript" src="../lib/jasmine-core/jasmine.js"></script>
+  <script type="text/javascript" src=".././spec/jasmine-yeti-adaptor.js"></script>
+  <script type="text/javascript">
+    // yes, really keep this here to keep us honest, but only for jasmine's own runner! [xw]
+    undefined = "diz be undefined yo";
+  </script>
+
+
+  <!-- include source files here... -->
+  <!-- helpers -->
+  <script type="text/javascript" src=".././src/html/HtmlReporterHelpers.js"></script>
+  <script type="text/javascript" src=".././src/html/HtmlReporter.js"></script>
+  <script type="text/javascript" src=".././src/html/HtmlReporterHelpers.js"></script>
+  <script type="text/javascript" src=".././src/html/ReporterView.js"></script>
+  <script type="text/javascript" src=".././src/html/SpecView.js"></script>
+  <script type="text/javascript" src=".././src/html/SuiteView.js"></script>
+  <script type="text/javascript" src=".././src/html/TrivialReporter.js"></script>
+  <script type="text/javascript" src=".././src/console/ConsoleReporter.js"></script>
+
+  <!-- files under test -->
+  <script type="text/javascript" src=".././src/helloworld.js"></script>
+  <script type="text/javascript" src="../../../static/scripts/utils.js"></script>
+  <script type="text/javascript" src="../../../static/scripts/camera.js"></script>
+
+  <!-- include spec files here... -->
+  <script type="text/javascript" src=".././spec/core/BaseSpec.js"></script>
+  <script type="text/javascript" src=".././spec/HelloWorldSpec.js"></script>
+  <script type="text/javascript" src=".././spec/UtilsSpec.js"></script>
+  <script type="text/javascript" src=".././spec/CameraSpec.js"></script>
+
+  <script type="text/javascript">
+    (function() {
+      var jasmineEnv = jasmine.getEnv();
+      jasmineEnv.updateInterval = 1000;
+
+      var htmlReporter = new jasmine.HtmlReporter();
+
+      jasmineEnv.addReporter(htmlReporter);
+
+      jasmineEnv.addReporter(new jasmine.TrivialReporter());
+
+      // If you're not running it through Yeti don't call the hookup method
+      if (window.$yetify !== undefined) {
+         BUNYIP.hookup(jasmineEnv);
+      }
+
+      jasmineEnv.specFilter = function(spec) {
+        return htmlReporter.specFilter(spec);
+      };
+
+      var currentWindowOnload = window.onload;
+
+      window.onload = function() {
+        if (currentWindowOnload) {
+          currentWindowOnload();
+        }
+        execJasmine();
+      };
+
+      function execJasmine() {
+        jasmineEnv.execute();
+      }
+
+    })();
+  </script>
+
+</head>
+
+<body>
+</body>
+</html>
