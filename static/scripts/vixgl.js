@@ -156,19 +156,18 @@ vixgl.animatePlanets = function (elapsed) {
 vixgl.drawPlanets = function() {
    for (prop in this.planets) {
       if (this.planets.hasOwnProperty(prop)) {
-         this.mvPushMatrix();
-
          // maybe draw planet should be on planet (figures :P)
          // and the glCtx could have some notion of world objects
          // that it should iterate over,
          // push the mvMatrix,
          // draw the world object
          // then pop the mvMatrix and carry on 
-         planet = this.planets[prop];
-         mat4.rotate(this.mvMatrix, planet.rTri, [0, 1, 0]);
-         mat4.translate(this.mvMatrix, planet.distFromCentre);
-         planet.draw(this);
 
+         this.mvPushMatrix();
+            planet = this.planets[prop];
+            mat4.rotate(this.mvMatrix, planet.rTri, [0, 1, 0]);
+            mat4.translate(this.mvMatrix, planet.distFromCentre);
+            planet.draw(this);
          this.mvPopMatrix();
       }
    }
@@ -266,61 +265,43 @@ vixgl.getVideoLocation = function (videoRef) {
    return videoLocationBase.replace('%s', videoRef);
 };
 
-// TODO this should handle if we've already drawn the video?
-// and get rid of old ones
 // or maybe some other method wrapping it should
 vixgl.drawVid = function (videoRef) {
    "use strict";
 
-   var vid = document.createElement('video');
+   console.log('draw vid');
 
-   vid.id = 'video' + videoRef;
-   vid.style.display = 'none';
-   vid.height = '256';
-   vid.width = '256';
-   vid.className = 'vidTexture';
-   vid.src = '/vid?vid=http://streaming.vikkiread.co.uk.s3.amazonaws.com/' + videoRef + '.mp4';
+   var video_id = 'video' + videoRef,
+       vid = document.getElementById(video_id);
+   
+   console.log('vid is ' + video_id);
+   if (vid) {
+      console.log('already had video ' + video_id);
+      return vid;
+   }
+
+   console.log('creating new video ' + video_id);
+   vid = document.createElement('video');
+      vid.id = video_id;
+      vid.style.display = 'none';
+      vid.height = '256';
+      vid.width = '256';
+      vid.className = 'vidTexture';
+      vid.src = '/vid?vid=http://streaming.vikkiread.co.uk.s3.amazonaws.com/' + videoRef + '.mp4';
    document.body.appendChild(vid);
    return vid;
-};
-
-
-vixgl.removeOldVidEmbeds = function (current) {
-   "use strict";
-
-   // call stop  + remove old video elements - hopefully this prevents mem leakages? 
-   var vidTextures = document.querySelectorAll('.vidTexture'),
-      vid;
-
-   for (var i = 0; i < vidTextures.length; i++) {
-      vid = vidTextures[i];
-      if (vid === current) {
-         continue;
-      }
-      vid.pause();
-      // http://blog.pearce.org.nz/2010/11/how-to-stop-video-or-audio-element.html
-      vid.src = '';
-      vid.currentSrc = '';
-      vid.load();
-      vid.parentElement.removeChild(vid);
-   }
-};
-
-vixgl.setupChartViz = function (oReq) {
-   "use strict";
-
-   var vvc = JSON.parse(oReq.responseText);
-   console.dir(vvc);
-   vixgl.drawStuff(vvc);
 };
 
 vixgl.doStuff = function () {
    "use strict";
 
    var vvcJsonUrl = vixgl.config.getConfig()['vvcJson'],
-      vixgl_canvas = document.getElementById('vixgl');
+       vixgl_canvas = document.getElementById('vixgl');
 
-   vixgl.util.doAjaxRequest(vvcJsonUrl, vixgl.setupChartViz);
+   vixgl.util.doAjaxRequest(vvcJsonUrl, function(oReq) {
+      var vvc = JSON.parse(oReq.responseText);
+      vixgl.drawStuff(vvc);
+   });
    var bindy  = vixgl.util.bind(vixgl, vixgl.doStuffWithPlanet);
    vixgl.util.addEventHandler(vixgl_canvas, 'onclick', bindy);
 };
@@ -358,7 +339,6 @@ vixgl.anySelectedPlanet = function() {
 // selected === selected planet, not playing
 // playing  === selected planet, playing
 
-
 vixgl.reset = function(planet, vid) {
    var prop,
        currentPlanet;
@@ -372,7 +352,7 @@ vixgl.reset = function(planet, vid) {
       }
    }
 
-   vixgl.removeOldVidEmbeds(vid);
+   //vixgl.util.removeOldVidEmbeds(vid);
 };
 
 vixgl.doStuffWithPlanet = function () {

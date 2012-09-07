@@ -1,0 +1,960 @@
+<html>
+<head>
+<script src="static/glMatrix-0.9.5.min.js"></script>
+<script type="text/javascript" src="static/webgl-utils.js"></script>
+<script id="fragmentShader" type="x-shader/x-fragment">
+    precision mediump float;
+
+    varying vec2 vTextureCoord;
+    varying vec3 vLightWeighting;
+
+    uniform sampler2D uSampler;
+
+    void main (void) {
+        vec4 textureColor = texture2D(uSampler, vec2(vTextureCoord.s, vTextureCoord.t));
+        gl_FragColor = vec4(textureColor.rgb * vLightWeighting, textureColor.a);
+    }
+</script>
+
+<script>
+   var YTAPIReady = false;
+
+   // 2. This code loads the IFrame Player API code asynchronously.
+   var tag = document.createElement('script');
+   tag.src = "http://www.youtube.com/player_api";
+   var firstScriptTag = document.getElementsByTagName('script')[0];
+   firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+   // 3. This function creates an <iframe> (and YouTube player)
+   //    after the API code downloads.
+   var player;
+   function onYouTubePlayerAPIReady() {
+      YTAPIReady = true;
+  }
+
+   // 4. The API will call this function when the video player is ready.
+   function onPlayerReady(event) {
+     console.log('onplayerready');
+     event.target.playVideo();
+   }
+
+   // 5. The API calls this function when the player's state changes.
+   //    The function indicates that when playing a video (state=1),
+   //    the player should play for six seconds and then stop.
+   var done = false;
+   function onPlayerStateChange(event) {
+     if (event.data == YT.PlayerState.PLAYING && !done) {
+       setTimeout(stopVideo, 6000);
+       done = true;
+     }
+   }
+   function stopVideo(player) {
+     player.stopVideo();
+   }
+</script>
+
+<script id="vertexShader" type="x-shader/x-vertex">
+    attribute vec3 aVertexPosition;
+    attribute vec3 aVertexNormal;
+    attribute vec2 aTextureCoord;
+
+    uniform float uScale;
+
+    uniform mat4 uMVMatrix;
+    uniform mat4 uPMatrix;
+    uniform mat3 uNMatrix;
+
+    uniform vec3 uAmbientColor;
+    uniform vec3 uLightingDirection;
+    uniform vec3 uDirectionalColor;
+
+    varying vec2 vTextureCoord;
+    varying vec3 vLightWeighting;
+
+    void main(void) {
+      gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, uScale);
+      vTextureCoord = aTextureCoord;
+
+      vec3 transformedNormal = uNMatrix * aVertexNormal;
+      float directionalLightWeighting = max(dot(transformedNormal, uLightingDirection), 0.0);
+      vLightWeighting = uAmbientColor + uDirectionalColor * directionalLightWeighting;
+    }
+</script>
+
+
+<script id="dummyFragmentShader" type="x-shader/x-fragment">
+    precision mediump float;
+
+    uniform vec4 uColor;
+
+    void main(void) {
+        gl_FragColor = uColor;
+    }
+</script>
+
+
+<script id="dummyVertexShader" type="x-shader/x-vertex">
+    attribute vec3 aVertexPosition;
+
+    uniform float uScale;
+
+    uniform mat4 uMVMatrix;
+    uniform mat4 uPMatrix;
+
+    void main(void) {
+      gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, uScale);
+    }
+</script>
+
+<script>
+   var glCtx = function(canvasId, fragmentShaderId, vertexShaderId) {
+      this.canvasId = canvasId;
+      this.fragmentShaderId = fragmentShaderId;
+      this.vertexShaderId = vertexShaderId;
+      this.mvMatrix = mat4.create();
+      this.pMatrix = mat4.create();
+   };
+
+    var dummy = new glCtx('dummygl', 'dummyFragmentShader', 'dummyVertexShader');
+    var proper = new glCtx('vixgl', 'fragmentShader', 'vertexShader');
+
+    dummy.initTextures = function()  {
+    };
+
+
+    glCtx.prototype.drawStuff = function() {
+       this.initGL();
+       this.initShaders();
+       this.initBuffers();
+       // don't do for dummy?
+       this.initTextures();
+
+       this.gl.clearColor(0.0, 0.0, 0.0, 0.1); 
+       this.gl.enable(this.gl.DEPTH_TEST);
+    };
+
+   var drawStuff = function(vvc) {
+       initWorldObjects(vvc);
+
+       dummy.drawStuff();
+       proper.drawStuff(); 
+
+       tick();
+
+    };
+
+   glCtx.prototype.initGL = function() {
+     var canvas = document.getElementById(this.canvasId);
+     // ~= gl but future proof : canvas.getContext('experimental-webgl');
+     //properGL = WebGLUtils.setupWebGL(canvas);
+     this.gl = canvas.getContext('experimental-webgl', {preserveDrawingBuffer: true});
+     this.viewportWidth = canvas.width;
+     this.viewportHeight = canvas.height;
+   };
+
+    var lastTime = 0;
+    var animate = function() {
+       var timeNow = new Date().getTime();
+
+       if (lastTime != 0){
+          var elapsed = timeNow - lastTime;
+          for (var i in planets) {
+             planets[i].animate(elapsed); 
+          }
+       }
+
+       lastTime = timeNow;
+    };
+
+    // ask the browser to call us again, next time stuff needs to be animated
+    // i.e. when we're in focus and the screen needs repainting
+    // then draw the scene, and set it up for next time (move things) 
+    var tick = function() {
+         requestAnimFrame(tick);
+
+         proper.drawScene();
+         dummy.drawScene();
+         animate(); 
+    }
+
+    // internal func
+    var getShader = function(ctx, shaderName) {
+       var shaderScript = document.getElementById(shaderName);
+         var str = '';
+         for (var k = shaderScript.firstChild; k; k = k.nextSibling) {
+            if (k.nodeType == 3) {
+               str += k.textContent;
+            }   
+         }
+
+         var shaderMap = {};
+         shaderMap['x-shader/x-fragment'] = ctx.FRAGMENT_SHADER;
+         shaderMap['x-shader/x-vertex']   = ctx.VERTEX_SHADER;
+         
+         var shader = ctx.createShader(shaderMap[shaderScript.type]);
+         console.dir(shader);
+         ctx.shaderSource(shader, str);
+         ctx.compileShader(shader);
+
+         if (!ctx.getShaderParameter(shader, ctx.COMPILE_STATUS)){
+                 console.log(ctx.getShaderInfoLog(shader));
+         } 
+
+         return shader;
+    };
+
+    proper.initUniforms = function() {
+       var shaderProgram = this.shaderProgram;
+       var gl = this.gl;
+       shaderProgram.mvMatrixUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
+       shaderProgram.pMatrixUniform = gl.getUniformLocation(shaderProgram, 'uPMatrix');
+       shaderProgram.nMatrixUniform = gl.getUniformLocation(shaderProgram, 'uNMatrix');
+       shaderProgram.samplerUniform = gl.getUniformLocation(shaderProgram, 'uSampler');
+       shaderProgram.scale = gl.getUniformLocation(shaderProgram, 'uScale');
+       shaderProgram.ambientColorUniform = gl.getUniformLocation(shaderProgram, 'uAmbientColor');
+       shaderProgram.lightingDirectionUniform = gl.getUniformLocation(shaderProgram, 'uLightingDirection');
+       shaderProgram.directionalColorUniform = gl.getUniformLocation(shaderProgram, 'uDirectionalColor');
+    }
+
+    proper.initAttributes = function() {
+       var prog = this.shaderProgram;
+       var gl = this.gl;
+       prog.vertexPositionAttribute = gl.getAttribLocation(prog, 'aVertexPosition');
+       gl.enableVertexAttribArray(prog.vertexPositionAttribute);
+
+       prog.vertexNormalAttribute = gl.getAttribLocation(prog, 'aVertexNormal');
+       gl.enableVertexAttribArray(prog.vertexNormalAttribute);
+
+       prog.textureCoordAttribute = gl.getAttribLocation(prog, 'aTextureCoord');
+       gl.enableVertexAttribArray(prog.textureCoordAttribute);
+    }
+
+       proper.initProgVars = function(planet){
+         var gl = this.gl;
+         var vertices = this.vertices;
+         var prog = this.shaderProgram;
+
+         gl.bindBuffer(gl.ARRAY_BUFFER, vertices.normalBuffer);
+         gl.vertexAttribPointer(prog.vertexNormalAttribute, vertices.normalBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+         gl.bindBuffer(gl.ARRAY_BUFFER, vertices.textureCoordBuffer);
+         gl.vertexAttribPointer(prog.textureCoordAttribute, vertices.textureCoordBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+
+         gl.activeTexture(gl.TEXTURE0);
+         gl.bindTexture(gl.TEXTURE_2D, planet.texture);
+         gl.uniform1i(prog.samplerUniform, 0);
+
+         // push ambient light RGB uniform to shader
+         gl.uniform3f( prog.ambientColorUniform, 0.2, 0.2, 0.2);
+
+         // directional lighting vector
+         var lightingDirection = [0.25, -0.25, -1.0];
+         var adjustedLD = vec3.create();
+         vec3.normalize(lightingDirection, adjustedLD);
+         // reverse the vector cos we specify it in terms of where its going
+         // but we calculate it in terms of where its coming from
+         vec3.scale(adjustedLD, -1);
+         // push it up to the shader
+         gl.uniform3fv(prog.lightingDirectionUniform, adjustedLD); 
+
+         // push directional lighting colour up to the shader
+         gl.uniform3f(prog.directionalColorUniform, 0.7, 0.7, 0.7);
+       };
+
+    glCtx.prototype.initShaders = function() {
+       var fragmentShader = getShader(this.gl, this.fragmentShaderId); 
+       var vertexShader   = getShader(this.gl, this.vertexShaderId); 
+
+       this.shaderProgram = this.gl.createProgram();
+       this.gl.attachShader(this.shaderProgram, vertexShader);
+       this.gl.attachShader(this.shaderProgram, fragmentShader);
+       this.gl.linkProgram(this.shaderProgram);
+
+       var foo = this.gl.getProgramParameter(this.shaderProgram, this.gl.LINK_STATUS);
+       if (!foo) {
+        console.log('webgl didnae work' + foo);
+       } else {
+          console.log('program is shiny');
+       }
+
+       this.gl.useProgram(this.shaderProgram); 
+
+       this.initUniforms();
+       this.initAttributes();
+    };
+
+    dummy.initUniforms = function() {
+       var prog = this.shaderProgram;
+       var gl = this.gl;
+
+       prog.mvMatrixUniform = gl.getUniformLocation(prog, "uMVMatrix");
+       prog.pMatrixUniform = gl.getUniformLocation(prog, 'uPMatrix');
+       prog.scale = gl.getUniformLocation(prog, 'uScale');
+       prog.color = gl.getUniformLocation(prog, 'uColor');
+  }
+
+    dummy.initAttributes = function() {
+       var prog = this.shaderProgram;
+       var gl = this.gl;
+
+       prog.vertexPositionAttribute = gl.getAttribLocation(prog, 'aVertexPosition');
+       gl.enableVertexAttribArray(prog.vertexPositionAttribute);
+    }
+
+    dummy.initProgVars = function(planet){
+         var r = planet.color[0] / 255;
+         var g = planet.color[1] / 255;
+         var b = planet.color[2] / 255;
+         var a = planet.color[3] / 255;
+         this.gl.uniform4fv( this.shaderProgram.color, [r,g,b,a]);
+   };
+
+   glCtx.prototype.setupBuffer  = function(contents, itemSize, buffer) {
+       var gl = this.gl;
+       var newBuffer = gl.createBuffer();
+       newBuffer.itemSize = itemSize;
+       newBuffer.numItems = contents.length / itemSize;
+       gl.bindBuffer(buffer, newBuffer);
+       return newBuffer;
+   };
+
+   glCtx.prototype.setupFloat32Buffer = function(contents, itemSize, buffer) {
+       var gl = this.gl;
+       var newBuffer = this.setupBuffer(contents, itemSize, buffer);
+       gl.bufferData(buffer, new Float32Array(contents), gl.STATIC_DRAW);
+       return newBuffer;
+   };
+
+   glCtx.prototype.setupUint16Buffer = function(contents, itemSize, buffer) {
+       var gl = this.gl;
+       var newBuffer = this.setupBuffer(contents, itemSize, buffer);
+       gl.bufferData(buffer, new Uint16Array(contents), gl.STATIC_DRAW);
+       return newBuffer;
+   };
+
+    glCtx.prototype.initBuffers = function() {
+       this.vertices = {};
+       var latitudeBands = 30;
+       var longitudeBands = 30;
+       var radius = 2;
+
+       var vertexPositionData = [];
+       var normalData = [];
+       var textureCoordData = [];
+
+       for (var latNumber = 0; latNumber <= latitudeBands; latNumber++) {
+         var theta = latNumber * Math.PI / latitudeBands;
+         var sinTheta = Math.sin(theta);
+         var cosTheta = Math.cos(theta);
+   
+         for (var longNumber = 0; longNumber <= longitudeBands; longNumber++) {
+           var phi = longNumber * 2 * Math.PI / longitudeBands;
+           var sinPhi = Math.sin(phi);
+           var cosPhi = Math.cos(phi);
+   
+           var x = cosPhi * sinTheta;
+           var y = cosTheta;
+           var z = sinPhi * sinTheta;
+
+           var u = 1 - (longNumber / longitudeBands);
+           var v = 1 - (latNumber / latitudeBands);
+   
+           normalData.push(x);
+           normalData.push(y);
+           normalData.push(z);
+
+           textureCoordData.push(u);
+           textureCoordData.push(v);
+
+           vertexPositionData.push(radius * x);
+           vertexPositionData.push(radius * y);
+           vertexPositionData.push(radius * z);
+         }
+       }
+
+       this.vertices.normalBuffer = this.setupFloat32Buffer(normalData, 3, this.gl.ARRAY_BUFFER);
+       this.vertices.textureCoordBuffer = this.setupFloat32Buffer(textureCoordData, 2, this.gl.ARRAY_BUFFER);
+       this.vertices.positionBuffer = this.setupFloat32Buffer(vertexPositionData, 3, this.gl.ARRAY_BUFFER);
+
+       indexData = [];
+       scaleBuffer = [];
+       for (var latNumber = 0; latNumber < latitudeBands; latNumber++) {
+         for (var longNumber = 0; longNumber < longitudeBands; longNumber++) {
+           var topLeft = (latNumber * (longitudeBands + 1)) + longNumber;
+           var bottomLeft = topLeft + longitudeBands + 1;
+           var topRight = topLeft + 1; 
+           var bottomRight  = bottomLeft + 1; 
+
+           indexData.push(topLeft);
+           indexData.push(bottomLeft);
+           indexData.push(topRight);
+   
+           indexData.push(bottomLeft);
+           indexData.push(bottomRight);
+           indexData.push(topRight);
+
+         }
+       }
+
+       this.vertices.indexBuffer = this.setupUint16Buffer(indexData, 1, this.gl.ELEMENT_ARRAY_BUFFER);
+    };
+
+    function initWorldObjects(vvc) {
+        var planet = new Planet(0.1,[0,1,0], [0,0,0],
+        'http://www.mathematik.uni-marburg.de/~menzel/images/Tutorial_Sun/SunTexture_2048.png', 0.5, [255,255,0,255], 'the SUN', null);
+        planets.push(planet);
+
+        var maxShareCount = 0;
+        var totalShareCount = 0;
+        for (var i = 0; i < 10; i++) {
+           if (vvc.entries[i].shares > maxShareCount){
+              maxShareCount = vvc.entries[i].shares;
+              totalShareCount += vvc.entries[i].shares;
+           }
+        }
+
+        var allowForSun = 3;
+        var maxDistFromSun = 13;
+
+        var outSoFar = allowForSun;
+        for (var i = 0; i < 10; i++) {
+            var fakeIndex = (i*1)+1;
+            var foo = fakeIndex * 1;
+            var rotDist = [0,foo,0];
+            var rTri = Math.random() ;
+
+            var sharePerc = vvc.entries[i].shares / totalShareCount;
+            var thisDist = sharePerc*(maxDistFromSun-allowForSun); // we were using 12 as the max before...
+            var dist = thisDist + outSoFar;
+            var distFromCentre = [dist, 0.0, dist];
+            outSoFar += thisDist;
+
+            var scale = Math.random() * 2.5 + 1.0;
+            scale = vvc.entries[i].shares / maxShareCount;
+            scale = scale + 1.5;
+
+            var r = Math.round(Math.random() * 255);
+            var g = Math.round(Math.random() * 255);
+            var b = Math.round(Math.random() * 255);
+            var a = 255;
+
+           var planet = new Planet(rTri, rotDist, distFromCentre, vvc.entries[i].thumbnailUrl, scale, [r,g,b,a], vvc.entries[i].title, vvc.entries[i].hostingSiteUrl, vvc.entries[i].videoRef);
+           planets.push(planet);
+        }   
+    }
+
+    glCtx.prototype.initTextures = function() {
+        for (var i in planets) {
+           this.initTexture(planets[i].imageUrl); 
+        }   
+    }
+
+    glCtx.prototype.initTexture = function(vid) {
+      var foo = new Image();
+      var ctx  = this;
+      foo.onload = function() {
+         // barf refactor
+         var realUrl = this.src;
+         var realUrlMatch =   this.src.match(/kitty\?img=([^&]*)&?/);
+         if(realUrlMatch && realUrlMatch.length > 0) {
+            realUrl = realUrlMatch[1];
+         }
+         var planet = getNewPlanetFromImageUrl(realUrl);
+         var texture = ctx.createTextureFromImage(this);
+         planet.texture = texture;
+      }
+      foo.src = '/kitty?img=' + vid;
+    }
+
+// its an enormous ballache to get the index in here, so not bothering for now..
+glCtx.prototype.createTextureFromImage = function(image) {
+    image.crossOrigin = '';
+    if (!isPowerOfTwo(image.width) || !isPowerOfTwo(image.height)) {
+        // Scale up the texture to the next highest power of two dimensions.
+        var canvas = document.createElement("canvas");
+        canvas.style = 'background-color: #FFFF00';
+        canvas.width = nextHighestPowerOfTwo(image.width);
+        canvas.height = nextHighestPowerOfTwo(image.height);
+        var ctx = canvas.getContext("2d");
+
+        // almost black, but a bit lighter so you can see the contours a bit
+        // better
+        ctx.fillStyle = '#1F1F1F';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // draw image in the middle
+        var centerX = canvas.width/2 - image.width/2; 
+        var centerY = canvas.height/2 - image.height/2; 
+        ctx.drawImage(image, centerX, centerY, image.width, image.height);
+
+        // TODO figure out middle properly, and size of text etc.)
+        ctx.moveTo(50, 50);
+        ctx.fillStyle = 'Red';
+        ctx.font = '30px sans-serif';
+        //ctx.fillText("fill", 60, 60);
+
+        image = canvas;
+    }
+
+    return this.makeTextureFrom(image);
+}
+
+   glCtx.prototype.makeTextureFrom = function(image)  {
+      var texture = this.gl.createTexture();
+      this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
+      this.gl.pixelStorei(this.gl.UNPACK_FLIP_Y_WEBGL, true);
+      this.gl.texImage2D(this.gl.TEXTURE_2D,0,this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, image);
+      this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST);
+      this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST);
+      // make the current texture null (tidy up)
+      this.gl.bindTexture(this.gl.TEXTURE_2D, null);
+ 
+      return texture;
+    }
+
+
+
+// its an enormous ballache to get the index in here, so not bothering for now..
+glCtx.prototype.createTextureFromImage = function(image) {
+    var texture = this.gl.createTexture();
+    return this.updateTextureWith(image, texture);
+}
+glCtx.prototype.makeImageSuitableForTexture = function(image)  {
+    image.crossOrigin = '';
+    // it probs should be image.width not image.videoWidth or clientWidth but doesn't work with <video>
+    // fix with functional programming :P
+    if (image.tagName && image.tagName == 'IMG') {
+      var width = image.width;
+      var height = image.height;
+    }  else {
+      var width = image.videoWidth;
+      var height = image.videoHeight;
+    }
+
+    if (!isPowerOfTwo(width) || !isPowerOfTwo(height)) {
+        // Scale up the texture to the next highest power of two dimensions.
+        var canvas = document.createElement("canvas");
+        canvas.style = 'background-color: #FFFF00';
+        canvas.width = nextHighestPowerOfTwo(width);
+        canvas.height = nextHighestPowerOfTwo(height);
+        var ctx = canvas.getContext("2d");
+
+        // almost black, but a bit lighter so you can see the contours a bit
+        // better
+        ctx.fillStyle = '#1F1F1F';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // draw image in the middle
+        var centerX = canvas.width/2 - width/2; 
+        var centerY = canvas.height/2 - height/2; 
+        ctx.drawImage(image, centerX, centerY, width, height);
+
+        // TODO figure out middle properly, and size of text etc.)
+        ctx.moveTo(50, 50);
+        ctx.fillStyle = 'Red';
+        ctx.font = '30px sans-serif';
+        //ctx.fillText("fill", 60, 60);
+
+        image = canvas;
+    }
+
+    return image;
+}
+
+glCtx.prototype.updateTextureWith = function(image, texture)  {
+      image = this.makeImageSuitableForTexture(image);
+
+      this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
+      this.gl.pixelStorei(this.gl.UNPACK_FLIP_Y_WEBGL, true);
+      this.gl.texImage2D(this.gl.TEXTURE_2D,0,this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, image);
+      this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST);
+      this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST);
+      // make the current texture null (tidy up)
+      this.gl.bindTexture(this.gl.TEXTURE_2D, null);
+ 
+      return texture;
+    }
+
+
+ 
+    glCtx.prototype.setMatrixUniforms = function() {
+       this.gl.uniformMatrix4fv(this.shaderProgram.pMatrixUniform,  false, this.pMatrix);
+       this.gl.uniformMatrix4fv(this.shaderProgram.mvMatrixUniform, false, this.mvMatrix);
+
+       var normalMatrix = mat3.create();
+       mat4.toInverseMat3(this.mvMatrix, normalMatrix);
+       mat3.transpose(normalMatrix);
+       this.gl.uniformMatrix3fv(this.shaderProgram.nMatrixUniform, false, normalMatrix);
+    };
+
+    glCtx.prototype.mvMatrixStack = []; 
+
+    glCtx.prototype.mvPushMatrix = function() {
+       var copy = mat4.create();
+       mat4.set(this.mvMatrix, copy);
+       this.mvMatrixStack.push(copy);
+    };
+
+    glCtx.prototype.mvPopMatrix = function() {
+       if (this.mvMatrixStack.length == 0) {
+          throw "no pringles for you!";
+       }
+       this.mvMatrix = this.mvMatrixStack.pop();
+    };
+
+    glCtx.prototype.drawScene = function() {
+         var gl = this.gl;
+         var shaderProgram = this.shaderProgram;
+         var vertices = this.vertices;
+
+         gl.viewport(0, 0, this.viewportWidth, this.viewportHeight);
+         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+         mat4.perspective(45, this.viewportWidth / this.viewportHeight, 0.1, 100.0, this.pMatrix);
+
+         mat4.identity(this.mvMatrix);
+         mat4.translate(this.mvMatrix, [0.0, 0.0, -30.0]);
+
+         for (var i in planets) {
+            this.mvPushMatrix();
+
+            var planet = planets[i];
+            var fakeIndex = (i*1)+1;
+
+            var rotAngle = fakeIndex*planet.rTri;
+            mat4.rotate(this.mvMatrix, planet.rTri, planet.rotDist);
+
+            mat4.translate(this.mvMatrix, planet.distFromCentre);
+            planets[i].draw(this);
+
+            this.mvPopMatrix();
+         }
+    };
+
+     var planets = [];
+
+  function Planet(rTri, rotDist, distFromCentre, imageUrl, scale, color, title, video, videoRef ){
+    this.rotDist = rotDist;
+    this.distFromCentre = distFromCentre;
+    this.imageUrl = 'http://streaming.vikkiread.co.uk.s3.amazonaws.com/' + videoRef + '.jpg';
+    this.rotationAngleDuringWindow = rTri;
+    this.windowToRotate = 1000;
+    this.rTri = rTri;
+    this.scale = scale;
+    this.color = color;
+    this.title = title;
+    this.video = video;
+    this.vidding = false;
+    this.videoRef = videoRef;
+  }
+
+var dodgyHack = 0; 
+
+
+function drawVid(videoRef) {
+       var vid = document.createElement('video');
+       vid.id = 'video' + videoRef;
+       vid.style.display = 'none';
+       vid.height = '256'; 
+       vid.width  = '256'; 
+       vid.className = 'vidTexture';
+       //vid.src = '/yt_vid?vid=' + videoRef;
+       vid.src = '/vid?vid=http://streaming.vikkiread.co.uk.s3.amazonaws.com/' + videoRef + '.mp4';
+       /*console.log(dodgyHack);
+       var foo = dodgyHack++ % 3;
+       console.log(foo);
+       if (foo == 0){
+          vid.src = '/vid';
+       } else if (foo == 1){
+          vid.src = '/vid?vid=' + 'http://streaming.vikkiread.co.uk.s3.amazonaws.com/wote_siutk.mp4';
+       } else {
+          vid.src = '/vid?vid=' + 'http://streaming.vikkiread.co.uk.s3.amazonaws.com/nyancat.mp4';
+       }*/
+       document.body.appendChild(vid);
+       return vid;
+}
+
+function drawVidEmbed(videoRef) {
+   var embed = createYTEmbed(videoRef);
+}
+
+function removeOldVidEmbeds(current) {
+   // call stop on old video elements - hopefully this prevents mem leakages? 
+   // remove old video elements
+   // turn off vidding
+   // hunt down the inevitable memory leaks that ensue :P
+   var vidTextures = document.querySelectorAll('.vidTexture');
+   for (var i = 0; i < vidTextures.length; i++) {
+      var vid = vidTextures[i];
+      if (vid == current)  {
+         continue;
+      }
+      vid.pause();
+      // http://blog.pearce.org.nz/2010/11/how-to-stop-video-or-audio-element.html
+      vid.src = '';
+      vid.currentSrc = '';
+      vid.load();
+      vid.parentElement.removeChild(vid);
+   }
+}
+
+Planet.prototype.draw = function(ctx) {
+         ctx.mvPushMatrix();
+
+         //mat4.rotate(this.mvMatrix, rTri, [0,1,0]);
+
+         var gl = ctx.gl; 
+         var vertices = ctx.vertices;
+         var shaderProgram = ctx.shaderProgram;
+         gl.bindBuffer(gl.ARRAY_BUFFER, vertices.positionBuffer);
+         gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, vertices.positionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, vertices.indexBuffer);
+         gl.uniform1f( shaderProgram.scale, this.scale);
+
+         ctx.initProgVars(this);
+
+         mat4.translate(ctx.mvMatrix, [1.0, 0.0, 1.0]);
+
+         ctx.setMatrixUniforms();
+         gl.drawElements(gl.TRIANGLES, vertices.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+    
+         ctx.mvPopMatrix();
+};
+
+Planet.prototype.animate = function(elapsed) {
+   this.rTri += (this.rotationAngleDuringWindow * elapsed / this.windowToRotate);
+   if (this.vidding) {
+      var vid = document.getElementById('video' + this.videoRef);
+      this.texture = proper.updateTextureWith(vid, this.texture);
+   }
+   //this.scale = ( * elapsed / ); 
+};
+
+Planet.prototype.setVidding = function() {
+   // totes need to set orig texture back in here!!
+   for (var i in planets) {
+      var planet = planets[i];
+      planet.vidding = planet == this ? true : false;
+   } 
+};
+
+function isPowerOfTwo(x) {
+    return (x & (x - 1)) == 0;
+}
+ 
+function nextHighestPowerOfTwo(x) {
+    --x;
+    for (var i = 1; i < 32; i <<= 1) {
+        x = x | x >> i;
+    }
+    return x + 1;
+}
+
+
+function getXMLHttpRequest() 
+{
+    if (window.XMLHttpRequest) {
+        return new window.XMLHttpRequest;
+    }
+    else {
+        try {
+            return new ActiveXObject("MSXML2.XMLHTTP.3.0");
+        }
+        catch(ex) {
+            return null;
+        }
+    }
+}
+
+function handler()
+{
+    // is oReq in here cos of closures?
+    if (oReq.readyState == 4 /* complete */) {
+        if (oReq.status == 200) {
+            //var vvc = eval(oReq.responseText);
+            var vvc = JSON.parse(oReq.responseText);
+            console.dir(vvc);
+            drawStuff(vvc);
+        }
+    }
+}
+
+function doStuff() {
+   // don't global me 
+   oReq = getXMLHttpRequest();
+   
+   if (oReq != null) {
+       //oReq.open("GET", "/static/fakevvc.js", true);    
+       //oReq.open("GET", "/html?html=http://viralvideochart.unrulymedia.com/all?format=app_json", true);    
+       oReq.open("GET", "/html?html=http://streaming.vikkiread.co.uk.s3.amazonaws.com/current_vvc.json", true);    
+       oReq.onreadystatechange = handler;    
+       oReq.send();
+   }
+   else {
+       window.alert("AJAX (XMLHTTP) not supported.");
+   }
+   document.getElementById('vixgl').addEventListener('click', handleClick, false);
+}
+
+// only diff between these 2 are the if statement - use some functional shiz
+// here to tidy them up?
+/*function getNewPlanetFromImageUrl(imageUrl) {
+  for (var i = 0; i < planets.length; i++) {
+     //if (planets[i].imageUrl == imageUrl && planets[i].texture == null) {
+     if (planets[i].imageUrl == imageUrl ) {
+        return planets[i];
+     }
+  }
+}
+
+function getPlanetFromColor(color) {
+  for (var i = 0; i < planets.length; i++) {
+     if ((planets[i].color[0] == color[0]) &&
+         (planets[i].color[1] == color[1]) &&
+         (planets[i].color[2] == color[2]) &&
+         (planets[i].color[3] == color[3]) ) {
+        return planets[i];
+     }
+  }
+}*/
+
+
+function getNewPlanetFromImageUrl(imgToMatch) {
+  var equalsImgUrl = function(planet, imgToMatch) {
+     return planet.imageUrl == imgToMatch;
+  }; 
+
+  return getFirstMatching(planets, equalsImgUrl, imgToMatch);
+
+  /*for (var i = 0; i < planets.length; i++) {
+     //if (planets[i].imageUrl == imageUrl && planets[i].texture == null) {
+     if (planets[i].imageUrl == imageUrl ) {
+        return planets[i];
+     }
+  }*/
+}
+
+
+function equalsColor(planet, colorToMatch) {
+     return ((planet.color[0] == colorToMatch[0]) &&
+             (planet.color[1] == colorToMatch[1]) &&
+             (planet.color[2] == colorToMatch[2]) &&
+             (planet.color[3] == colorToMatch[3]) );
+}
+
+function getFirstMatching(collection, matcher, toMatch ) {
+  for (var i = 0; i < collection.length; i++) {
+     if (matcher(collection[i], toMatch)) {
+       return collection[i];
+     }
+  }
+}
+
+function getPlanetFromColor(colorToMatch) {
+   return getFirstMatching(planets, equalsColor, colorToMatch);
+}
+
+
+function relMouseCoords(e){
+   var x;
+   var y;
+   if (e.pageX || e.pageY) { 
+     x = e.pageX;
+     y = e.pageY;
+   }
+   else { 
+     x = e.clientX + document.body.scrollLeft + document.documentElement.scrollLeft; 
+     y = e.clientY + document.body.scrollTop + document.documentElement.scrollTop; 
+   } 
+    
+   x -= e.toElement.offsetLeft;
+   y -= e.toElement.offsetTop;
+   return {x:x, y:y};
+}
+
+function getColorFromCoords(coords, ctx) {
+   var pixelValues = new Uint8Array(4);
+   ctx.readPixels(coords.x, coords.y, 1,1, ctx.RGBA, ctx.UNSIGNED_BYTE, pixelValues)
+   return pixelValues;
+}
+
+function handleClick(e) {
+   var coords = relMouseCoords(event);
+   var col = getColorFromCoords(coords, dummy.gl);
+   var planet = getPlanetFromColor(col);
+
+   var toShow = planet ? planet.title : 'the VOID....';
+
+   document.getElementById('whoo').innerText = 'i am embarassingly happy that you clicked on ' +  toShow;
+
+   var vid = document.getElementById('video' + planet.videoRef);
+   var vid = drawVid(planet.videoRef);
+
+   vid.addEventListener('playing',function(e)  {
+      console.log('vid is playing');
+      console.dir(e);
+      var vid = document.getElementById('video' + planet.videoRef);
+      planet.texture = proper.updateTextureWith(vid, planet.texture);
+   }, false);
+   planet.setVidding();
+   removeOldVidEmbeds(vid); 
+   vid.play();
+
+   //removeOldVidEmbeds(); 
+   //drawVidEmbed(planet.videoRef);
+}
+
+function createYTEmbed(videoRef) {
+   player = new YT.Player('embedBackground', {
+     height: '390',
+     width: '640',
+     videoId: videoRef,
+     events: {
+       'onReady': onPlayerReady,
+       'onStateChange': onPlayerStateChange
+     }
+   });
+  
+   return player;
+}
+
+ function oldCreateEmbed(videoRef) {
+   var ytUrl = 'https://www.youtube.com/apiplayer?version=3&amp;video_id=' + videoRef + '&amp;enablejsapi=1&amp;playerapiid=ytplayer';
+
+   var options = { 'ytUrl' : ytUrl };
+
+   var embedCode = [
+      '<object type="application/x-shockwave-flash" id="myytplayer" ',
+      'data="%ytUrl%"',
+      'width="640" height="360">',
+      '   <param name="allowScriptAccess" value="always">',
+      '   <param name="bgcolor" value="#cccccc">',
+      '</object>'
+   ];
+ 
+   var embed = embedCode.join('\n');
+
+   for (option in options) {
+      if (options.hasOwnProperty(option)) {
+         embed = embed.replace('%' + option + '%', options[option]);
+      }
+   }
+
+   return embed;
+} 
+
+
+
+</script>
+</head>
+<body onload="doStuff()">
+  <canvas id="vixgl" width="1600" height="400" style="background-image: url('http://www.ilovemydesktop.com/data/media/14/Nebula_Space.jpg');">
+  </canvas>
+  <canvas id="dummygl" width="1600" height="400" style="display:none">
+  </canvas>
+  <p id='whoo'></p>
+
+  <div id="embedBackground" width="1600" height="400" style="display:none">
+  </div>
+</body>
+</html>
