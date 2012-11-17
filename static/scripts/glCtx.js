@@ -1,6 +1,6 @@
 /*global vixgl:false, mat4:false, mat3:false */
 
-var glCtx = function (canvasId, fragmentShaderId, vertexShaderId) {
+var GlCtx = function (canvasId, fragmentShaderId, vertexShaderId) {
    "use strict";
 
    this.canvasId = canvasId;
@@ -11,7 +11,7 @@ var glCtx = function (canvasId, fragmentShaderId, vertexShaderId) {
    this.worldObjects = [];
 };
 
-glCtx.prototype.drawStuff = function () {
+GlCtx.prototype.drawStuff = function () {
    "use strict";
 
    this.initGL();
@@ -24,7 +24,7 @@ glCtx.prototype.drawStuff = function () {
    this.gl.enable(this.gl.DEPTH_TEST);
 };
 
-glCtx.prototype.initGL = function () {
+GlCtx.prototype.initGL = function () {
    "use strict";
 
    var canvas = document.getElementById(this.canvasId);
@@ -37,7 +37,7 @@ glCtx.prototype.initGL = function () {
    this.viewportHeight = canvas.height;
 };
 
-glCtx.prototype.initShaders = function () {
+GlCtx.prototype.initShaders = function () {
    "use strict";
 
    var fragmentShader = this.getShader(this.gl, this.fragmentShaderId),
@@ -63,7 +63,7 @@ glCtx.prototype.initShaders = function () {
 };
 
 
-glCtx.prototype.setupBuffer = function (contents, itemSize, buffer) {
+GlCtx.prototype.setupBuffer = function (contents, itemSize, buffer) {
    "use strict";
 
    var gl = this.gl,
@@ -74,7 +74,7 @@ glCtx.prototype.setupBuffer = function (contents, itemSize, buffer) {
    return newBuffer;
 };
 
-glCtx.prototype.setupFloat32Buffer = function (contents, itemSize, buffer) {
+GlCtx.prototype.setupFloat32Buffer = function (contents, itemSize, buffer) {
    "use strict";
 
    var newBuffer = this.setupBuffer(contents, itemSize, buffer);
@@ -82,7 +82,7 @@ glCtx.prototype.setupFloat32Buffer = function (contents, itemSize, buffer) {
    return newBuffer;
 };
 
-glCtx.prototype.setupUint16Buffer = function (contents, itemSize, buffer) {
+GlCtx.prototype.setupUint16Buffer = function (contents, itemSize, buffer) {
    "use strict";
 
    var newBuffer = this.setupBuffer(contents, itemSize, buffer);
@@ -90,7 +90,7 @@ glCtx.prototype.setupUint16Buffer = function (contents, itemSize, buffer) {
    return newBuffer;
 };
 
-glCtx.prototype.initBuffers = function () {
+GlCtx.prototype.initBuffers = function () {
    "use strict";
 
    var latitudeBands = 30,
@@ -174,7 +174,7 @@ glCtx.prototype.initBuffers = function () {
    this.vertices.indexBuffer = this.setupUint16Buffer(indexData, 1, this.gl.ELEMENT_ARRAY_BUFFER);
 };
 
-glCtx.prototype.initTextures = function () {
+GlCtx.prototype.initTextures = function () {
    "use strict";
    
    var prop,
@@ -188,21 +188,28 @@ glCtx.prototype.initTextures = function () {
    }
 };
 
-glCtx.prototype.initTexture = function (worldObject) {
+GlCtx.prototype.initTexture = function (worldObject) {
    "use strict";
 
    var imgForTexture = new Image(),
        ctx = this;
 
    imgForTexture.onload = function () {
-      var texture = ctx.createTextureFromImage(this)
+      var texture = ctx.createTextureFromImage(this);
       worldObject.texture = texture;
    };
-   imgForTexture.src = vixgl.getVideoLocation(worldObject.imageUrl);
+   imgForTexture.src = this.getVideoLocation(worldObject.imageUrl);
    return imgForTexture;
 };
 
-glCtx.prototype.makeTextureFrom = function (image) {
+GlCtx.prototype.getVideoLocation = function (videoRef) {
+   "use strict";
+
+   var videoLocationBase = vixgl.config.getConfig()['videoLocationBase'];
+   return videoLocationBase.replace('%s', videoRef);
+};
+
+GlCtx.prototype.makeTextureFrom = function (image) {
    "use strict";
 
    var texture = this.gl.createTexture();
@@ -218,14 +225,14 @@ glCtx.prototype.makeTextureFrom = function (image) {
    return texture;
 };
 
-glCtx.prototype.createTextureFromImage = function (image) {
+GlCtx.prototype.createTextureFromImage = function (image) {
    "use strict";
 
 var texture = this.gl.createTexture();
    return this.updateTextureWith(image, texture);
 };
 
-glCtx.prototype.makeImageSuitableForTexture = function (image) {
+GlCtx.prototype.makeImageSuitableForTexture = function (image) {
    "use strict";
 
    var width,
@@ -270,7 +277,7 @@ glCtx.prototype.makeImageSuitableForTexture = function (image) {
    return image;
 };
 
-glCtx.prototype.updateTextureWith = function (image, texture) {
+GlCtx.prototype.updateTextureWith = function (image, texture) {
    "use strict";
 
    image = this.makeImageSuitableForTexture(image);
@@ -286,7 +293,7 @@ glCtx.prototype.updateTextureWith = function (image, texture) {
    return texture;
 };
 
-glCtx.prototype.setMatrixUniforms = function () {
+GlCtx.prototype.setMatrixUniforms = function () {
    "use strict";
 
    var normalMatrix = mat3.create();
@@ -299,9 +306,9 @@ glCtx.prototype.setMatrixUniforms = function () {
    this.gl.uniformMatrix3fv(this.shaderProgram.nMatrixUniform, false, normalMatrix);
 };
 
-glCtx.prototype.mvMatrixStack = [];
+GlCtx.prototype.mvMatrixStack = [];
 
-glCtx.prototype.mvPushMatrix = function () {
+GlCtx.prototype.mvPushMatrix = function () {
    "use strict";
 
    var copy = mat4.create();
@@ -309,7 +316,7 @@ glCtx.prototype.mvPushMatrix = function () {
    this.mvMatrixStack.push(copy);
 };
 
-glCtx.prototype.mvPopMatrix = function () {
+GlCtx.prototype.mvPopMatrix = function () {
    "use strict";
 
    if (this.mvMatrixStack.length === 0) {
@@ -318,7 +325,7 @@ glCtx.prototype.mvPopMatrix = function () {
    this.mvMatrix = this.mvMatrixStack.pop();
 };
 
-glCtx.prototype.drawScene = function () {
+GlCtx.prototype.drawScene = function () {
    "use strict";
    /*jshint bitwise: false */
 
@@ -351,7 +358,7 @@ glCtx.prototype.drawScene = function () {
    }
 };
 
-glCtx.prototype.getShader = function(ctx, shaderName) {
+GlCtx.prototype.getShader = function(ctx, shaderName) {
    "use strict";
 
    // TODO should do this with ajax
@@ -371,7 +378,7 @@ glCtx.prototype.getShader = function(ctx, shaderName) {
    shaderMap['x-shader/x-vertex']   = ctx.VERTEX_SHADER;
   
    var shader = ctx.createShader(shaderMap[shaderScript.type]);
-   console.dir(shader);
+   vixgl.util.dir(shader);
    ctx.shaderSource(shader, str);
    ctx.compileShader(shader);
 

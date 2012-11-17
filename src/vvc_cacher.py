@@ -56,6 +56,7 @@ def makeNewS3Key(file, filename, clobberExisting=False):
 
    s3 = boto.connect_s3()
    bucket = s3.get_bucket('streaming.vikkiread.co.uk')
+   #TODO clobberExisting clause is the wrong way round i think 
    if clobberExisting and bucket.get_key(filename) != None:
       print  "already got " + filename
       return

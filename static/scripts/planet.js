@@ -80,7 +80,7 @@ vixgl.Planet.prototype.playVideo = function() {
 
          // this shouldn't be in here because its not a feature of the planet...
          if (vid) {
-            console.log('play vid');
+            vixgl.util.log('play vid');
             vid.play();
          }
 };
@@ -122,10 +122,10 @@ vixgl.Planet.prototype.updateAndNormaliseAngle = function(elapsed) {
 
 
 vixgl.Planet.prototype.equalsColor = function (toMatch) {
-   return ((this.color[0] == toMatch[0]) && 
-           (this.color[1] == toMatch[1]) && 
-           (this.color[2] == toMatch[2]) && 
-           (this.color[3] == toMatch[3]));
+   return ((this.color[0] === toMatch[0]) && 
+           (this.color[1] === toMatch[1]) && 
+           (this.color[2] === toMatch[2]) && 
+           (this.color[3] === toMatch[3]));
 };
 
 vixgl.Planet.prototype.equalsImageUrl = function (toMatch) {

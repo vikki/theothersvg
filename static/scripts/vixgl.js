@@ -1,4 +1,4 @@
-/*global vec3:false, glCtx:false, requestAnimFrame:false */
+/*global vec3:false, GlCtx:false, requestAnimFrame:false */
 
 // TODO idea - is there a chrome api for mem usage? an experimental one : 
 // http://developer.chrome.com/extensions/experimental.processes.html
@@ -14,17 +14,12 @@
 // could maybe throw in observer pattern here?
 // TODO not yet!!!
 
-/*var vixgl = vixgl || {
-   planets: [],
-   dummy: new glCtx('dummygl', 'dummyFragmentShader', 'dummyVertexShader'),
-   proper: new glCtx('vixgl', 'fragmentShader', 'vertexShader')
-};*/
 var vixgl = vixgl || {};
 vixgl.planets = [];
 
 // TODO one fine day most of these attributes can be set up with mixins for lighting and textures etc.
 // not quite there yet though!
-vixgl.proper = new glCtx('vixgl', 'fragmentShader', 'vertexShader');
+vixgl.proper = new GlCtx('vixgl', 'fragmentShader', 'vertexShader');
 
 vixgl.proper.initUniforms = function () {
    "use strict";
@@ -96,7 +91,7 @@ vixgl.proper.initProgVars = function (planet) {
 };
 
 
-vixgl.dummy = new glCtx('dummygl', 'dummyFragmentShader', 'dummyVertexShader');
+vixgl.dummy = new GlCtx('dummygl', 'dummyFragmentShader', 'dummyVertexShader');
 
 vixgl.dummy.initTextures = function () {
    "use strict";
@@ -154,10 +149,15 @@ vixgl.animatePlanets = function (elapsed) {
 };
 
 vixgl.drawPlanets = function() {
+   "use strict";
+
+   var prop,
+       planet;
+
    for (prop in this.planets) {
       if (this.planets.hasOwnProperty(prop)) {
          // maybe draw planet should be on planet (figures :P)
-         // and the glCtx could have some notion of world objects
+         // and the GlCtx could have some notion of world objects
          // that it should iterate over,
          // push the mvMatrix,
          // draw the world object
@@ -258,51 +258,17 @@ vixgl.addPlanet = function(planet) {
    this.proper.worldObjects.push(planet);
 };
 
-vixgl.getVideoLocation = function (videoRef) {
+vixgl.doStuff = function (jsonUrl, onClickFunc, onClickFuncHost) {
    "use strict";
 
-   var videoLocationBase = vixgl.config.getConfig()['videoLocationBase'];
-   return videoLocationBase.replace('%s', videoRef);
-};
+   // draw canvas insetad of looking for it? could do both?
+   var vixgl_canvas = document.getElementById('vixgl');
 
-// or maybe some other method wrapping it should
-vixgl.drawVid = function (videoRef) {
-   "use strict";
-
-   console.log('draw vid');
-
-   var video_id = 'video' + videoRef,
-       vid = document.getElementById(video_id);
-   
-   console.log('vid is ' + video_id);
-   if (vid) {
-      console.log('already had video ' + video_id);
-      return vid;
-   }
-
-   console.log('creating new video ' + video_id);
-   vid = document.createElement('video');
-      vid.id = video_id;
-      vid.style.display = 'none';
-      vid.height = '256';
-      vid.width = '256';
-      vid.className = 'vidTexture';
-      vid.src = '/vid?vid=http://streaming.vikkiread.co.uk.s3.amazonaws.com/' + videoRef + '.mp4';
-   document.body.appendChild(vid);
-   return vid;
-};
-
-vixgl.doStuff = function () {
-   "use strict";
-
-   var vvcJsonUrl = vixgl.config.getConfig()['vvcJson'],
-       vixgl_canvas = document.getElementById('vixgl');
-
-   vixgl.util.doAjaxRequest(vvcJsonUrl, function(oReq) {
+   vixgl.util.doAjaxRequest(jsonUrl, function(oReq) {
       var vvc = JSON.parse(oReq.responseText);
       vixgl.drawStuff(vvc);
    });
-   var bindy  = vixgl.util.bind(vixgl, vixgl.doStuffWithPlanet);
+   var bindy  = vixgl.util.bind(onClickFuncHost, onClickFunc);
    vixgl.util.addEventHandler(vixgl_canvas, 'onclick', bindy);
 };
 
@@ -333,51 +299,5 @@ vixgl.anySelectedPlanet = function() {
       }
    }
    return false;
-};
-
-// normal   === no selected planet
-// selected === selected planet, not playing
-// playing  === selected planet, playing
-
-vixgl.reset = function(planet, vid) {
-   var prop,
-       currentPlanet;
-
-   for (prop in this.planets) {
-      if (this.planets.hasOwnProperty(prop)) {
-         currentPlanet = this.planets[prop];
-         currentPlanet.selected = false;
-         currentPlanet.greyed = (typeof planet !== 'undefined');
-         this.proper.updateTextureWith(currentPlanet.origTexture, currentPlanet.texture);
-      }
-   }
-
-   //vixgl.util.removeOldVidEmbeds(vid);
-};
-
-vixgl.doStuffWithPlanet = function () {
-   "use strict";
-
-   var coords = vixgl.util.relMouseCoords(event),
-       planet = vixgl.getPlanetFromCoords(coords),
-       toShow = planet ? planet.title : 'the VOID....',
-       vid;
-
-   document.getElementById('whoo').innerText = 'i am embarassingly happy that you clicked on ' + toShow;
-
-   // ARGH
-   if (planet) {
-      vid = document.getElementById('video' + planet.videoRef);
-   } 
-   this.reset(planet, vid);
-
-   if (planet) {
-      //vid = document.getElementById('video' + planet.videoRef);
-      if (!vid) {
-         vid = vixgl.drawVid(planet.videoRef);
-      }
-      planet.selected = true;
-      planet.greyed = false;
-   }
 };
 

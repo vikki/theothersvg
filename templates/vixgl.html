@@ -10,6 +10,7 @@
 <script type="text/javascript" src="static/scripts/camera.js"></script>
 <script type="text/javascript" src="static/scripts/glCtx.js"></script>
 <script type="text/javascript" src="static/scripts/vixgl.js"></script>
+<script type="text/javascript" src="static/scripts/theothersvg.js"></script>
 
 <script id="fragmentShader" type="x-shader/x-fragment">
     precision mediump float;
@@ -91,7 +92,7 @@
 </head>
 
 <!-- shouldn't bind the doStuff method like this *lesigh* -->
-<body onload="vixgl.doStuff()">
+<body onload="vixgl.doStuff('/html?html=http://streaming.vikkiread.co.uk.s3.amazonaws.com/current_vvc.json', theothersvg.doStuffWithPlanet, theothersvg)">
   <canvas id="vixgl" width="1600" height="400" >
   </canvas>
   <canvas id="dummygl" width="1600" height="400" >

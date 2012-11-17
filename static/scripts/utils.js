@@ -27,6 +27,16 @@ vixgl.util = vixgl.util || {
       }
    },
 
+   dir : function dir(obj) {
+      "use strict";
+   
+      if (console && console.dir) {
+         console.dir(obj);
+      } else {
+         alert(obj);
+      }
+   },
+
    // don't handle all failure cases properly here - TODO fixme 
    doAjaxRequest : function doAjaxRequest(url, onSuccess, onFail) {
       "use strict";
@@ -229,7 +239,7 @@ vixgl.util = vixgl.util || {
    vixgl.util.addEventHandler(document, 'onkeydown', function handleKeyDown(event) {
          "use strict";
    
-         console.log('you pressed ' + event.keyCode);
+         vixgl.util.log('you pressed ' + event.keyCode);
    
          vixgl.util.currentlyPressedKeys[event.keyCode] = 1;
       });
