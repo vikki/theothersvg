@@ -1,2 +1,4 @@
 boto==2.3.0
 Flask==0.8
+jinja2>=3.1.4 # not directly required, pinned by Snyk to avoid a vulnerability
+werkzeug>=3.0.3 # not directly required, pinned by Snyk to avoid a vulnerability
